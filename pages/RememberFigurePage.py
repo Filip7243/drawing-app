@@ -1,10 +1,11 @@
 from PyQt6.QtWidgets import QWidget, QGridLayout, QHBoxLayout, QSizePolicy, QVBoxLayout
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QPixmap, QPainter
 
 from components.AprilTagsComponent import AprilTagsComponent
 from components.StyledHeader import StyledHeader
 from components.TimeBar import TimeBar
+from pages.DrawingPage import DrawingPage
 
 
 class RememberFigurePage(QWidget):
@@ -16,12 +17,14 @@ class RememberFigurePage(QWidget):
         self.scaled_background = self.background
         self.setWindowTitle("Remember Figure Page")
 
+        self.timer = QTimer(self)
+
         main_layout = QVBoxLayout()
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)  # brak marginesów
 
-        time_bar = TimeBar(max_time=10)
-        main_layout.addWidget(time_bar)
+        self.time_bar = TimeBar(max_time=3)
+        main_layout.addWidget(self.time_bar)
 
         header = StyledHeader("Zapamiętaj rysunek")
         main_layout.addWidget(header)
@@ -33,6 +36,28 @@ class RememberFigurePage(QWidget):
         main_layout.addWidget(april_tags)
 
         self.setLayout(main_layout)
+
+    def showEvent(self, event):
+        """Uruchamia timer TimeBar po wyrenderowaniu okna"""
+        super().showEvent(event)
+        QTimer.singleShot(0, self.start_time_bar)
+
+    def start_time_bar(self):
+        """Funkcja startująca odliczanie TimeBar"""
+        self.time_bar.setTime(self.time_bar.max_time)
+        self.timer.timeout.connect(self.update_time_bar)
+        self.timer.start(1000)  # zmienia stan timera co sekundę
+
+    def update_time_bar(self):
+        if self.time_bar.current_time > 0:
+            self.time_bar.setTime(self.time_bar.current_time - 1)
+        else:
+            self.timer.stop()
+
+            # Po widoku z zapamiętywaniem przechodzimy do rysowania
+            self.drawing_page = DrawingPage()
+            self.drawing_page.show()
+            self.hide()
 
     def resizeEvent(self, event):
         """Skaluje tło tylko przy zmianie rozmiaru."""

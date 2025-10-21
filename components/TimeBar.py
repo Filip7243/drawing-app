@@ -2,7 +2,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 
 class TimeBar(QtWidgets.QWidget):
-    def __init__(self, max_time=100, color="#EEB14C", height=10, parent=None):
+    def __init__(self, max_time=100, color="#EEB14C", height=15, parent=None):
         super().__init__(parent)
         self.max_time = max_time  # maksymalny czas
         self.current_time = max_time  # aktualny czas = max_time, bo zaczynamy odliczanie od końca do 0
@@ -40,33 +40,3 @@ class TimeBar(QtWidgets.QWidget):
         painter.drawRect(0, 0, fill_width, rect.height())
 
         painter.end()
-
-#
-# # --- Przykład użycia ---
-# if __name__ == "__main__":
-#     import sys
-#
-#     app = QtWidgets.QApplication(sys.argv)
-#
-#     window = QtWidgets.QWidget()
-#     layout = QtWidgets.QVBoxLayout(window)
-#
-#     time_bar = TimeBar(max_time=10)  # np. 60 sekund
-#     layout.addWidget(time_bar)
-#
-#     window.show()
-#
-#
-#     # Symulacja upływu czasu
-#     def update_bar():
-#         if time_bar.current_time > 0:
-#             time_bar.setTime(time_bar.current_time - 1)
-#         else:
-#             timer.stop()
-#
-#
-#     timer = QtCore.QTimer()
-#     timer.timeout.connect(update_bar)
-#     timer.start(1000)  # co 1 sekundę
-#
-#     sys.exit(app.exec())
