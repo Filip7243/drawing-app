@@ -2,10 +2,11 @@ import os
 import sys
 from pathlib import Path
 
-from PyQt6.QtCore import QDir
+from PyQt6.QtCore import QDir, Qt
 from PyQt6.QtWidgets import QApplication
 
-from pages.FormPage import FormPage
+from pages.MainFormPage import MainFormPage
+from pages.RememberFigurePage import RememberFigurePage
 
 CURRENT_DIRECTORY = Path(__file__).resolve().parent
 
@@ -15,8 +16,11 @@ def main():
 
     QDir.addSearchPath("assets", os.fspath(CURRENT_DIRECTORY / "assets"))
 
-    window = FormPage()
+    window = RememberFigurePage()
     window.showMaximized()
+    window.setWindowFlag(Qt.WindowType.Window)  # zwykłe okno
+    window.show()  # pokazujemy okno w określonym rozmiarze
+
     sys.exit(app.exec())
 
 

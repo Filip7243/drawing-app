@@ -1,12 +1,9 @@
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
-from PySide6.QtWidgets import (
-    QLabel
-)
+from PyQt6 import QtCore
+from PyQt6.QtGui import QFont, QPixmap, QPainter
+from PyQt6.QtWidgets import QLabel
 
-FONT_SIZE = 28
-
-HEIGHT = 100
+FONT_SIZE = 30
+HEIGHT = 150
 
 
 def getFont() -> QFont:
@@ -19,7 +16,11 @@ def getFont() -> QFont:
 class StyledHeader(QLabel):
     def __init__(self, text):
         super().__init__(text)
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.setFixedHeight(HEIGHT)
         self.setFont(getFont())
-        self.setStyleSheet("background-color: #89c057; color: white; border-radius: 10px;")
+        self.setStyleSheet("""
+                    background-color: #89c057;
+                    color: black;
+                    border-bottom: 3px solid #e0c77f;
+                """)

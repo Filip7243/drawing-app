@@ -1,11 +1,13 @@
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QDateEdit, QLineEdit
-
+from PyQt6.QtWidgets import (QWidget, QLabel,
+                             QVBoxLayout, QDateEdit, QLineEdit,
+                             QLineEdit, QGraphicsDropShadowEffect)
+from PyQt6.QtGui import QColor
 
 class StyledTextInput(QWidget):
     def __init__(self, label_text, is_date=False, placeholder=""):
         super().__init__()
         layout = QVBoxLayout()
-        layout.setSpacing(5)
+        layout.setSpacing(0)
         self.label = QLabel(label_text)
         self.label.setStyleSheet("font-size: 12pt; font-weight: bold;")
         layout.addWidget(self.label)
@@ -22,13 +24,20 @@ class StyledTextInput(QWidget):
             QLineEdit, QDateEdit {
                 font-size: 14pt;
                 padding: 6px;
-                border: 2px solid #f8e8c5;
+                border: 2px solid #e0c77f;
                 border-radius: 6px;
                 background-color: white;
+                font-weight: bold;
             }
             QLineEdit:focus, QDateEdit:focus {
-                border: 2px solid #89c057;
+                border: 3px solid #e0c77f;
             }
         """)
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(5)  # rozmycie cienia
+        shadow.setOffset(0, 5)  # przesunięcie: x=0, y=2
+        shadow.setColor(QColor(0, 0, 0, 80))  # kolor i przezroczystość
+        self.input.setGraphicsEffect(shadow)
+
         layout.addWidget(self.input)
         self.setLayout(layout)

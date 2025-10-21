@@ -1,17 +1,24 @@
-from PyQt6.QtWidgets import QHBoxLayout, QRadioButton, QCheckBox, QGroupBox
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QHBoxLayout, QRadioButton, QCheckBox, QWidget, QLabel, QVBoxLayout, QGraphicsDropShadowEffect
+from PyQt6.QtGui import QColor
 
 
-class StyledCheckBox(QGroupBox):
+class StyledCheckBox(QWidget):
     def __init__(self, title, options, is_radio=True):
-        super().__init__(title)
-        self.setStyleSheet("""
-            QGroupBox {
-                font-size: 14pt;
-                font-weight: bold;
-                margin-top: 10px;
-            }
-        """)
-        layout = QHBoxLayout()
+        super().__init__()
+
+        main_layout = QVBoxLayout()
+        main_layout.setSpacing(5)
+
+        # label przylegający do przycisków
+        label = QLabel(title)
+        label.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        main_layout.addWidget(label)
+
+        # layout dla samych przycisków
+        buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(10)
+
         self.buttons = []
         for opt in options:
             btn = QRadioButton(opt) if is_radio else QCheckBox(opt)
@@ -19,18 +26,28 @@ class StyledCheckBox(QGroupBox):
                 QRadioButton, QCheckBox {{
                     font-size: 12pt;
                     spacing: 10px;
-                    border: 2px solid #f8e8c5;
                     border-radius: 6px;
-                    padding: 4px;
+                    padding: 12px;
                     background-color: white;
+                    border: 2px solid #e0c77f;
+                    font-weight: bold;
                 }}
-                QRadioButton:checked {{
+               
+                QRadioButton:checked, QCheckBox:checked {{
                     background-color: #f9e8cc;
-                }}
-                QCheckBox:checked {{
-                    background-color: #f9e8cc;
+                    border: 3px solid #e0c77f;  /* ciemniejszy border przy zaznaczeniu */
                 }}
             """)
-            layout.addWidget(btn)
-            self.buttons.append(btn)  ## TODO: to do wyrzucenia chyba
-        self.setLayout(layout)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            buttons_layout.addWidget(btn)
+
+            shadow = QGraphicsDropShadowEffect()
+            shadow.setBlurRadius(5)  # rozmycie cienia
+            shadow.setOffset(0, 5)  # przesunięcie: x=0, y=2
+            shadow.setColor(QColor(0, 0, 0, 80))  # kolor i przezroczystość
+            btn.setGraphicsEffect(shadow)
+
+            self.buttons.append(btn)
+
+        main_layout.addLayout(buttons_layout)
+        self.setLayout(main_layout)
