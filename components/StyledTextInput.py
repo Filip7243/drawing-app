@@ -1,7 +1,7 @@
-from PyQt6.QtWidgets import (QWidget, QLabel,
-                             QVBoxLayout, QDateEdit, QLineEdit,
-                             QLineEdit, QGraphicsDropShadowEffect)
 from PyQt6.QtGui import QColor
+from PyQt6.QtWidgets import (QWidget, QLabel,
+                             QVBoxLayout, QDateEdit, QLineEdit, QGraphicsDropShadowEffect)
+
 
 class StyledTextInput(QWidget):
     def __init__(self, label_text, is_date=False, placeholder=""):

@@ -18,16 +18,20 @@ def darken_color(hex_color, factor=0.85):
 
 
 class StyledButton(QPushButton):
-    def __init__(self, text, color="#89c057"):
+    def __init__(self, text, color="#89c057", font_color=None):
         super().__init__(text)
 
         hover_color = darken_color(color, 0.95)  # ciemniejszy o 15%
         pressed_color = darken_color(color, 0.9)  # ciemniejszy o 30%
 
+        self.font_color = font_color or "black"
+
+        print(self.font_color)
+
         self.setStyleSheet(f"""
             QPushButton {{
                 background-color: {color};
-                color: black;
+                color: {self.font_color};
                 font-size: 16pt;
                 border-radius: 4px;
                 padding: 10px 20px;

@@ -1,66 +1,83 @@
-from PyQt6.QtWidgets import QWidget, QGridLayout, QHBoxLayout, QSizePolicy, QVBoxLayout
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, QDir, QUrl
 from PyQt6.QtGui import QPixmap, QPainter
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PyQt6.QtWidgets import QWidget, QVBoxLayout
 
 from components.AprilTagsComponent import AprilTagsComponent
-from components.StyledHeader import StyledHeader
 from components.TimeBar import TimeBar
 from pages.DrawingPage import DrawingPage
 
 
 class RememberFigurePage(QWidget):
     def __init__(self,
-                 bg_path="assets:img/figures/tutorial_figure.png",
-                 parent=None):
+                 bg_path="assets:img/figures/tutorial_figure_white.png",
+                 audio="03_zapamietaj_rysunek.wav",
+                 parent=None,
+                 is_tutorial=False):
         super().__init__(parent)
-        self.background = QPixmap(bg_path)
-        self.scaled_background = self.background
         self.setWindowTitle("Remember Figure Page")
 
-        self.timer = QTimer(self)
+        self.background = QPixmap(bg_path)
+        self.scaled_background = self.background
+        self.audio = audio
 
+        self.is_tutorial = is_tutorial
+
+        self.timer = QTimer(self)
+        self.player = QMediaPlayer()
+        self.audio_output = QAudioOutput()
+        self.player.setAudioOutput(self.audio_output)
+        self.audio_output.setVolume(1.0)
+
+        # wczytanie źródła audio (ale nie odtwarzamy jeszcze)
+        dir_assets = QDir("assets:/audio")
+        audio_path = dir_assets.absoluteFilePath(audio)
+        self.player.setSource(QUrl.fromLocalFile(audio_path))
+
+        # UI
         main_layout = QVBoxLayout()
         main_layout.setSpacing(0)
-        main_layout.setContentsMargins(0, 0, 0, 0)  # brak marginesów
+        main_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.time_bar = TimeBar(max_time=3)
+        self.time_bar = TimeBar(max_time=3, height=1, color="#FFFFFF")
         main_layout.addWidget(self.time_bar)
 
-        header = StyledHeader("Zapamiętaj rysunek")
-        main_layout.addWidget(header)
-
-        # TODO: porozmawiać jeszcze o tych AprilTags, najlepiej
-        # TODO: będzie to przetestować i sprawdzić ile tych tagów
-        # TODO: i jaka wielkość
         april_tags = AprilTagsComponent(num_tags=4)
         main_layout.addWidget(april_tags)
 
         self.setLayout(main_layout)
 
-    def showEvent(self, event):
-        """Uruchamia timer TimeBar po wyrenderowaniu okna"""
-        super().showEvent(event)
+    def start(self):
+        """Pokazuje stronę, odtwarza audio i startuje pasek czasu."""
+        self.showMaximized()
+
+        # restart audio
+        self.player.stop()
+        self.player.play()
+
+        # start timera dopiero po pokazaniu okna
         QTimer.singleShot(0, self.start_time_bar)
 
     def start_time_bar(self):
-        """Funkcja startująca odliczanie TimeBar"""
+        """Uruchamia licznik TimeBar."""
         self.time_bar.setTime(self.time_bar.max_time)
         self.timer.timeout.connect(self.update_time_bar)
-        self.timer.start(1000)  # zmienia stan timera co sekundę
+        self.timer.start(1000)
 
     def update_time_bar(self):
         if self.time_bar.current_time > 0:
             self.time_bar.setTime(self.time_bar.current_time - 1)
         else:
             self.timer.stop()
+            self.player.stop()
 
             # Po widoku z zapamiętywaniem przechodzimy do rysowania
             self.drawing_page = DrawingPage()
-            self.drawing_page.show()
+            self.drawing_page.showMaximized()
             self.hide()
 
     def resizeEvent(self, event):
-        """Skaluje tło tylko przy zmianie rozmiaru."""
+        """Skaluje tło przy zmianie rozmiaru."""
         if not self.background.isNull():
             self.scaled_background = self.background.scaled(
                 self.size(),
@@ -70,7 +87,7 @@ class RememberFigurePage(QWidget):
         super().resizeEvent(event)
 
     def paintEvent(self, event):
-        """Rysuje przeskalowane tło wyśrodkowane."""
+        """Rysuje przeskalowane tło."""
         painter = QPainter(self)
         if not self.scaled_background.isNull():
             x = (self.width() - self.scaled_background.width()) // 2

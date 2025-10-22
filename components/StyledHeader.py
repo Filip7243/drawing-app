@@ -3,7 +3,7 @@ from PyQt6.QtGui import QFont, QPixmap, QPainter
 from PyQt6.QtWidgets import QLabel
 
 FONT_SIZE = 30
-HEIGHT = 150
+HEIGHT = 100
 
 
 def getFont() -> QFont:

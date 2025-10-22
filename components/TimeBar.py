@@ -26,7 +26,8 @@ class TimeBar(QtWidgets.QWidget):
 
         # tło paska
         rect = self.rect()
-        painter.setBrush(QtGui.QBrush(QtGui.QColor("#F2DBB5")))
+        # painter.setBrush(QtGui.QBrush(QtGui.QColor("#F2DBB5")))
+        painter.setBrush(QtGui.QBrush(QtGui.QColor("white")))
         painter.setPen(QtCore.Qt.PenStyle.NoPen)
         painter.drawRect(rect)
 
