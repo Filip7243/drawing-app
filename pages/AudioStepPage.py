@@ -1,17 +1,17 @@
-from PyQt6.QtCore import Qt, QDir, QUrl
+from PyQt6.QtCore import Qt, QDir, QUrl, pyqtSignal
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
-
 from components.StyledButton import StyledButton
-from pages.tutorial.FirstTutorialPage import FirstTutorialPage
 
 
-# TODO: Każda straon ma byc osobno, zrobic copy paste kazdej ze stron i tak je uruchamiac a nie bawic sie w takie powiazania dziwne, to bez sensu
-class ThirdTutorialPage(QWidget):
-    def __init__(self, parent=None, audio="07_koniec_samouczka.wav"):
+class AudioStepPage(QWidget):
+    nextRequested = pyqtSignal()
+    repeatRequested = pyqtSignal()
+
+    def __init__(self, audio: str, parent=None,
+                 next_label: str = "DALEJ", repeat_label: str = "POWTÓRZ"):
         super().__init__(parent)
         self.setWindowTitle("Tutorial Page")
-
         self.audio = audio
 
         layout = QVBoxLayout()
@@ -20,17 +20,17 @@ class ThirdTutorialPage(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(50)
 
-        self.again_btn = StyledButton("POWTÓRZ", color="#89c057")
+        self.again_btn = StyledButton(repeat_label, color="#89c057")
         self.again_btn.setFixedSize(300, 100)
         self.again_btn.setDisabled(True)
-        self.again_btn.clicked.connect(self.on_again_btn_click)
+        self.again_btn.clicked.connect(self.repeatRequested.emit)
         btn_layout.addWidget(self.again_btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        self.tutorial_btn = StyledButton("DALEJ", color="#89c057")
-        self.tutorial_btn.setFixedSize(300, 100)
-        self.tutorial_btn.setDisabled(True)
-        self.tutorial_btn.clicked.connect(self.on_tutorial_btn_click)
-        btn_layout.addWidget(self.tutorial_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.next_btn = StyledButton(next_label, color="#89c057")
+        self.next_btn.setFixedSize(300, 100)
+        self.next_btn.setDisabled(True)
+        self.next_btn.clicked.connect(self.nextRequested.emit)
+        btn_layout.addWidget(self.next_btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
         layout.addLayout(btn_layout)
         self.setLayout(layout)
@@ -47,26 +47,16 @@ class ThirdTutorialPage(QWidget):
         self.player.playbackStateChanged.connect(self.on_playback_state_changed)
 
     def start(self):
-        """Rozpocznij odtwarzanie audio i zablokuj przyciski."""
-        self.showMaximized()
+        # When embedded in a container (FlowController's stack), avoid showing the window
+        if self.parent() is None:
+            self.showMaximized()
         self.again_btn.setDisabled(True)
-        self.tutorial_btn.setDisabled(True)
+        self.next_btn.setDisabled(True)
         self.player.stop()
         self.player.play()
 
     def on_playback_state_changed(self, state):
         from PyQt6.QtMultimedia import QMediaPlayer
         if state == QMediaPlayer.PlaybackState.StoppedState:
-            self.tutorial_btn.setDisabled(False)
+            self.next_btn.setDisabled(False)
             self.again_btn.setDisabled(False)
-
-    def on_tutorial_btn_click(self):
-        from pages.RememberFigurePage import RememberFigurePage
-        next_page = RememberFigurePage()
-        next_page.start()
-        self.hide()
-
-    def on_again_btn_click(self):
-        self.next_page = FirstTutorialPage()
-        self.next_page.start()
-        self.hide()

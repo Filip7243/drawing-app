@@ -1,13 +1,14 @@
-from PyQt6.QtCore import QDir, QUrl
+from PyQt6.QtCore import QDir, QUrl, pyqtSignal
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 
 from components.AprilTagsComponent import AprilTagsComponent
 from components.StyledButton import StyledButton
-from pages.tutorial.ThirdTutorialPage import ThirdTutorialPage
 
 
 class DrawingPage(QWidget):
+    finished = pyqtSignal()
+
     def __init__(self, parent=None, audio="05_odwzoruj_rysunek.wav", is_tutorial=True):
         super().__init__(parent)
         self.setWindowTitle("Draw Figure Page")
@@ -53,7 +54,4 @@ class DrawingPage(QWidget):
             self.player.play()
 
     def on_done_btn_click(self):
-        if self.is_tutorial:
-            self.next_page = ThirdTutorialPage()
-            self.next_page.start()
-            self.hide()
+        self.finished.emit()

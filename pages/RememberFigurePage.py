@@ -1,14 +1,15 @@
-from PyQt6.QtCore import Qt, QTimer, QDir, QUrl
+from PyQt6.QtCore import Qt, QTimer, QDir, QUrl, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPainter
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 
 from components.AprilTagsComponent import AprilTagsComponent
 from components.TimeBar import TimeBar
-from pages.DrawingPage import DrawingPage
 
 
 class RememberFigurePage(QWidget):
+    finished = pyqtSignal()
+
     def __init__(self,
                  bg_path="assets:img/figures/tutorial_figure_white.png",
                  audio="03_zapamietaj_rysunek.wav",
@@ -49,7 +50,9 @@ class RememberFigurePage(QWidget):
 
     def start(self):
         """Pokazuje stronę, odtwarza audio i startuje pasek czasu."""
-        self.showMaximized()
+        # When embedded in the controller's stack, avoid showing the window
+        if self.parent() is None:
+            self.showMaximized()
 
         # restart audio
         self.player.stop()
@@ -70,11 +73,7 @@ class RememberFigurePage(QWidget):
         else:
             self.timer.stop()
             self.player.stop()
-
-            # Po widoku z zapamiętywaniem przechodzimy do rysowania
-            self.drawing_page = DrawingPage()
-            self.drawing_page.showMaximized()
-            self.hide()
+            self.finished.emit()
 
     def resizeEvent(self, event):
         """Skaluje tło przy zmianie rozmiaru."""
