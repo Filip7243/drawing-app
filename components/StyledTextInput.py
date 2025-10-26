@@ -1,14 +1,22 @@
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (QWidget, QLabel,
                              QVBoxLayout, QDateEdit, QLineEdit, QGraphicsDropShadowEffect)
+from PyQt6.QtCore import Qt
 
 
 class StyledTextInput(QWidget):
-    def __init__(self, label_text, is_date=False, placeholder=""):
+    def __init__(self, label_text, is_date=False, placeholder="", required=False):
         super().__init__()
         layout = QVBoxLayout()
         layout.setSpacing(0)
+
+        self.required = required
+
+        if self.required:
+            label_text = f"{label_text} <sup style='color:red; font-size:14px;'>*</sup>"
+
         self.label = QLabel(label_text)
+        self.label.setTextFormat(Qt.TextFormat.RichText)
         self.label.setStyleSheet("font-size: 10pt; font-weight: bold;")
         layout.addWidget(self.label)
 
@@ -41,3 +49,7 @@ class StyledTextInput(QWidget):
 
         layout.addWidget(self.input)
         self.setLayout(layout)
+
+    def is_valid(self):
+        value = self.input.text().strip()
+        return bool(value) if self.required else True

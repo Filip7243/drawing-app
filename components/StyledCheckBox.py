@@ -5,16 +5,23 @@ from PyQt6.QtWidgets import QHBoxLayout, QRadioButton, QCheckBox, QWidget, QLabe
 
 
 class StyledCheckBox(QWidget):
-    def __init__(self, title, options, is_radio=True):
+    def __init__(self, title, options, is_radio=True, required=False):
         super().__init__()
 
         main_layout = QVBoxLayout()
         main_layout.setSpacing(2)
 
-        # label przylegający do przycisków
-        label = QLabel(title)
-        label.setStyleSheet("font-size: 10pt; font-weight: bold;")
-        main_layout.addWidget(label)
+        self.required = required
+        self.is_radio = is_radio
+
+        if self.required:
+            title = f"{title} <sup style='color:red; font-size:14px;'>*</sup>"
+
+        self.label = QLabel(title)
+        self.label.setTextFormat(Qt.TextFormat.RichText)
+        self.label.setStyleSheet("font-size: 10pt; font-weight: bold;")
+
+        main_layout.addWidget(self.label)
 
         # layout dla samych przycisków
         buttons_layout = QHBoxLayout()
@@ -52,3 +59,17 @@ class StyledCheckBox(QWidget):
 
         main_layout.addLayout(buttons_layout)
         self.setLayout(main_layout)
+
+    def get_value(self):
+        selected = [btn.text() for btn in self.buttons if btn.isChecked()]
+        if not selected:
+            return None
+        # jeśli radio — tylko jedna wartość
+        return selected[0] if self.is_radio else selected
+
+    def is_valid(self):
+        if not self.required:
+            return True
+
+        any_checked = any(btn.isChecked() for btn in self.buttons)
+        return any_checked

@@ -6,12 +6,18 @@ from PyQt6.QtWidgets import (
 
 
 class StyledDropdown(QWidget):
-    def __init__(self, label_text, options=None, placeholder="Wybierz...", on_select=None, is_hidden=False):
+    def __init__(self, label_text, options=None, placeholder="Wybierz...", on_select=None, is_hidden=False, required=False):
         super().__init__()
         layout = QVBoxLayout()
         layout.setSpacing(0)
 
+        self.required = required
+
+        if self.required:
+            label_text = f"{label_text} <sup style='color:red; font-size:14px;'>*</sup>"
+
         self.label = QLabel(label_text)
+        self.label.setTextFormat(Qt.TextFormat.RichText)
         self.label.setStyleSheet("font-size: 10pt; font-weight: bold;")
         layout.addWidget(self.label)
 
@@ -84,3 +90,8 @@ class StyledDropdown(QWidget):
 
     def hide_widget(self):
         self.setVisible(False)
+
+    def is_valid(self):
+        value = self.combo.currentIndex() > 0
+        return bool(value) if self.required else True
+
