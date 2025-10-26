@@ -11,6 +11,8 @@ from pages.DrawingPage import DrawingPage
 from pages.MainFormPage import MainFormPage
 from pages.RememberFigurePage import RememberFigurePage
 
+from db.database_manager_singleton import get_db
+
 CURRENT_DIRECTORY = Path(__file__).resolve().parent
 
 
@@ -54,12 +56,14 @@ TEST_SEQUENCE = [
 
 
 def main():
-    app = QApplication(sys.argv)
+    # app = QApplication(sys.argv)
 
     QDir.addSearchPath("assets", os.fspath(CURRENT_DIRECTORY / "assets"))
 
-    window = MainFormPage()
-    window.showMaximized()
+    db = get_db()
+    db.close()
+    # window = MainFormPage()
+    # window.showMaximized()
     # controller = FlowController()
     # controller.set_sequence(TUTORIAL_SEQUENCE)
     # controller.set_loop(True)
@@ -73,7 +77,7 @@ def main():
     # controller.set_on_complete(on_tutorial_complete)
     # controller.start()
 
-    sys.exit(app.exec())
+    # sys.exit(app.exec())
 
 
 if __name__ == "__main__":
