@@ -1,6 +1,7 @@
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QHBoxLayout, QRadioButton, QCheckBox, QWidget, QLabel, QVBoxLayout, QGraphicsDropShadowEffect
 from PyQt6.QtGui import QColor
+from PyQt6.QtWidgets import QHBoxLayout, QRadioButton, QCheckBox, QWidget, QLabel, QVBoxLayout, \
+    QGraphicsDropShadowEffect
 
 
 class StyledCheckBox(QWidget):
@@ -8,16 +9,16 @@ class StyledCheckBox(QWidget):
         super().__init__()
 
         main_layout = QVBoxLayout()
-        main_layout.setSpacing(5)
+        main_layout.setSpacing(2)
 
         # label przylegający do przycisków
         label = QLabel(title)
-        label.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        label.setStyleSheet("font-size: 10pt; font-weight: bold;")
         main_layout.addWidget(label)
 
         # layout dla samych przycisków
         buttons_layout = QHBoxLayout()
-        buttons_layout.setSpacing(10)
+        buttons_layout.setSpacing(5)
 
         self.buttons = []
         for opt in options:
@@ -27,7 +28,7 @@ class StyledCheckBox(QWidget):
                     font-size: 12pt;
                     spacing: 10px;
                     border-radius: 6px;
-                    padding: 12px;
+                    padding: 6px;
                     background-color: white;
                     border: 2px solid #e0c77f;
                     font-weight: bold;
@@ -35,7 +36,7 @@ class StyledCheckBox(QWidget):
                
                 QRadioButton:checked, QCheckBox:checked {{
                     background-color: #f9e8cc;
-                    border: 3px solid #e0c77f;  /* ciemniejszy border przy zaznaczeniu */
+                    border: 3px solid #e0c77f;
                 }}
             """)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)

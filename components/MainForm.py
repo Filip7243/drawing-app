@@ -1,13 +1,11 @@
-from PyQt6.QtWidgets import QWidget, QGridLayout, QHBoxLayout, QSizePolicy, QApplication
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QWidget, QGridLayout, QHBoxLayout
 
 from components.StyledButton import StyledButton
 from components.StyledCheckBox import StyledCheckBox
 from components.StyledDropdown import StyledDropdown
 from components.StyledTextArea import StyledTextArea
 from components.StyledTextInput import StyledTextInput
-from pages.RememberFigurePage import RememberFigurePage
-from pages.tutorial.FirstTutorialPage import FirstTutorialPage
 
 
 class MainForm(QWidget):
@@ -15,8 +13,8 @@ class MainForm(QWidget):
         super().__init__(parent=parent)
 
         layout = QGridLayout()
-        layout.setSpacing(5)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(2)
+        layout.setContentsMargins(8, 8, 8, 8)
 
         first_name = StyledTextInput("Imię", placeholder="Imię")
         last_name = StyledTextInput("Nazwisko", placeholder="Nazwisko")
@@ -69,14 +67,18 @@ class MainForm(QWidget):
         layout.addLayout(dropdown_row, 3, 0, 1, 2)
 
         additional_info = StyledTextArea("Uwagi")
-        additional_info.setFixedHeight(150)
+        additional_info.setFixedHeight(120)
 
         layout.addWidget(additional_info, 4, 0, 1, 2)
 
         examine_reason = StyledTextArea("Powód badania")
-        examine_reason.setFixedHeight(120)
+        examine_reason.setFixedHeight(100)
 
         layout.addWidget(examine_reason, 5, 0, 1, 2)
+
+        mode_radios = StyledCheckBox("Tryb testu", ['Normalny', 'Uproszczony'], is_radio=True)
+
+        layout.addWidget(mode_radios, 6, 0, 1, 2, alignment=Qt.AlignmentFlag.AlignVCenter)
 
         button_layout = QHBoxLayout()
         button_layout.addStretch(1)  # pushuje przyciski w prawo
@@ -88,10 +90,9 @@ class MainForm(QWidget):
 
         button_layout.addWidget(latest_examine_btn)
         button_layout.addWidget(start_btn)
-        button_layout.setSpacing(15)  # odstęp między przyciskami
+        button_layout.setSpacing(15)
 
-        # dodanie layoutu do siatki w wierszu 4 (ostatni), rozciągając na 2 kolumny
-        layout.addLayout(button_layout, 6, 0, 1, 2)
+        layout.addLayout(button_layout, 7, 0, 1, 2)
 
         self.setLayout(layout)
 
@@ -113,13 +114,4 @@ class MainForm(QWidget):
             self.details_dropdown.hide_widget()
 
     def on_start_btn_click(self):
-        self.tutorial_page = FirstTutorialPage(
-            audio="01_powitanie.wav",
-        )
-
-        self.tutorial_page.show()
-        self.tutorial_page.start()
-
-        if self.parent():
-            self.parent().hide()
-
+        pass

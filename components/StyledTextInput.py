@@ -9,7 +9,7 @@ class StyledTextInput(QWidget):
         layout = QVBoxLayout()
         layout.setSpacing(0)
         self.label = QLabel(label_text)
-        self.label.setStyleSheet("font-size: 12pt; font-weight: bold;")
+        self.label.setStyleSheet("font-size: 10pt; font-weight: bold;")
         layout.addWidget(self.label)
 
         if is_date:
@@ -22,7 +22,7 @@ class StyledTextInput(QWidget):
 
         self.input.setStyleSheet("""
             QLineEdit, QDateEdit {
-                font-size: 14pt;
+                font-size: 12pt;
                 padding: 6px;
                 border: 2px solid #e0c77f;
                 border-radius: 6px;

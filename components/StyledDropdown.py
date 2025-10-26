@@ -1,8 +1,8 @@
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QComboBox, QGraphicsDropShadowEffect
 )
-from PyQt6.QtGui import QColor, QMouseEvent, QIcon
-from PyQt6.QtCore import Qt, QTimer, QObject
 
 
 class StyledDropdown(QWidget):
@@ -12,7 +12,7 @@ class StyledDropdown(QWidget):
         layout.setSpacing(0)
 
         self.label = QLabel(label_text)
-        self.label.setStyleSheet("font-size: 12pt; font-weight: bold;")
+        self.label.setStyleSheet("font-size: 10pt; font-weight: bold;")
         layout.addWidget(self.label)
 
         self.combo = QComboBox()
@@ -27,18 +27,18 @@ class StyledDropdown(QWidget):
 
         self.combo.setStyleSheet("""
             QComboBox {
-                font-size: 14pt;
-                padding: 6px 35px 6px 6px; /* dodaj padding po prawej na strzałkę */
+                font-size: 12pt;
+                padding: 6px;
                 border: 2px solid #e0c77f;
                 border-radius: 6px;
                 background-color: white;
                 font-weight: bold;
             }
             QComboBox:hover {
-                border: 3px solid #d8b44a;
+                border: 2px solid #d8b44a;
             }
             QComboBox:focus {
-                border: 3px solid #e0c77f;
+                border: 2px solid #e0c77f;
             }
         """)
 

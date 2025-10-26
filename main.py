@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import QApplication
 from controllers.FlowController import FlowController
 from pages.AudioStepPage import AudioStepPage
 from pages.DrawingPage import DrawingPage
+from pages.MainFormPage import MainFormPage
 from pages.RememberFigurePage import RememberFigurePage
 
 CURRENT_DIRECTORY = Path(__file__).resolve().parent
@@ -57,18 +58,20 @@ def main():
 
     QDir.addSearchPath("assets", os.fspath(CURRENT_DIRECTORY / "assets"))
 
-    controller = FlowController()
-    controller.set_sequence(TUTORIAL_SEQUENCE)
-    controller.set_loop(True)
-
-    def on_tutorial_complete():
-        controller.set_loop(False)
-        controller.set_on_complete(None)
-        controller.set_sequence(TEST_SEQUENCE)
-        controller.start()
-
-    controller.set_on_complete(on_tutorial_complete)
-    controller.start()
+    window = MainFormPage()
+    window.showMaximized()
+    # controller = FlowController()
+    # controller.set_sequence(TUTORIAL_SEQUENCE)
+    # controller.set_loop(True)
+    #
+    # def on_tutorial_complete():
+    #     controller.set_loop(False)
+    #     controller.set_on_complete(None)
+    #     controller.set_sequence(TEST_SEQUENCE)
+    #     controller.start()
+    #
+    # controller.set_on_complete(on_tutorial_complete)
+    # controller.start()
 
     sys.exit(app.exec())
 

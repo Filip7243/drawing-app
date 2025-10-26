@@ -1,5 +1,6 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QGraphicsDropShadowEffect
 from PyQt6.QtGui import QColor
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QGraphicsDropShadowEffect
+
 
 class StyledTextArea(QWidget):
     def __init__(self, placeholder=""):
@@ -10,7 +11,7 @@ class StyledTextArea(QWidget):
         self.textarea.setPlaceholderText(placeholder)
         self.textarea.setStyleSheet("""
             QTextEdit {
-                font-size: 14pt;
+                font-size: 12pt;
                 padding: 6px;
                 border: 2px solid #e0c77f;
                 border-radius: 6px;
