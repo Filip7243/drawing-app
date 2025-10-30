@@ -42,7 +42,7 @@ class ResultTable(QWidget):
                 font-size: 11pt;
                 border: 2px solid #a0a0a0;
                 border-radius: 6px;
-                background-color: white;
+                background-color: #f6f6f6;
             }
             QTableWidget::item {
                 padding: 4px;

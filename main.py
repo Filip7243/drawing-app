@@ -5,9 +5,9 @@ from pathlib import Path
 from PyQt6.QtCore import QDir
 from PyQt6.QtWidgets import QApplication
 
-from components.EarlierExaminesTable import EarlierExaminesTable
 from pages.AudioStepPage import AudioStepPage
 from pages.DrawingPage import DrawingPage
+from pages.EarlierExaminesPage import EarlierExaminesPage
 from pages.RememberFigurePage import RememberFigurePage
 
 CURRENT_DIRECTORY = Path(__file__).resolve().parent
@@ -147,7 +147,7 @@ def main():
 
     # window = ResultsPage(table_data=table_data, patient_data=patient_data)
 
-    window = EarlierExaminesTable(data=earlier_examines_data)
+    window = EarlierExaminesPage(table_data=earlier_examines_data)
     window.showMaximized()
 
     ## SEKWENCJA
