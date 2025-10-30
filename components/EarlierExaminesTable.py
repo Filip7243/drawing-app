@@ -5,11 +5,14 @@ from PyQt6.QtWidgets import (
     QVBoxLayout, QPushButton, QHeaderView, QSizePolicy
 )
 
+from components.StyledTextPopUp import StyledTextPopUp
+
 
 class EarlierExaminesTable(QWidget):
     def __init__(self, data=None, parent=None):
         super().__init__(parent)
         self.data = data or []
+        self.popup = None  # referencja do aktywnego popupu
 
         self.table = QTableWidget()
         self.layout = QVBoxLayout(self)
@@ -59,7 +62,7 @@ class EarlierExaminesTable(QWidget):
                 font-size: 10.5pt;
                 border: 1px solid #a0a0a0;
                 border-radius: 6px;
-                background-color: white;
+                background-color: #f6f6f6;
             }
             QTableWidget::item {
                 padding: 4px;
@@ -191,7 +194,46 @@ class EarlierExaminesTable(QWidget):
         self.table.setItem(row, col, item)
 
     # ----------------------------------------------------------------------
-    # Placeholder dla akcji przycisku
+    # Obsługa kliknięcia przycisku "Uwagi"
     # ----------------------------------------------------------------------
     def on_remarks_clicked(self, index):
-        print(f"Kliknięto przycisk 'Uwagi' w wierszu {index + 1}")
+        # Zamknij poprzedni popup, jeśli istnieje
+        if self.popup:
+            self.popup.close()
+            self.popup = None
+
+        # Pobierz dane dla tego wiersza
+        row_data = self.data[index] if index < len(self.data) else {}
+        uwagi_text = row_data.get("uwagi", "Brak uwag")
+        data_text = row_data.get("data", "")
+
+        # Utwórz nowy popup
+        self.popup = StyledTextPopUp(
+            f"Uwagi",
+            uwagi_text,
+            parent=self
+        )
+
+        # Wyświetl popup
+        self.popup.show()
+
+        # Wycentruj popup na ekranie
+        screen = self.popup.screen().geometry()
+        popup_size = self.popup.size()
+        x = (screen.width() - popup_size.width()) // 2
+        y = (screen.height() - popup_size.height()) // 2
+        self.popup.move(x, y)
+
+    # ----------------------------------------------------------------------
+    # Override mousePressEvent - zamknij popup przy kliknięciu poza nim
+    # ----------------------------------------------------------------------
+    def mousePressEvent(self, event):
+        if self.popup and self.popup.isVisible():
+            # Sprawdź czy kliknięcie było poza popupem
+            popup_global_rect = self.popup.geometry()
+            popup_global_rect.moveTopLeft(self.popup.mapToGlobal(self.popup.rect().topLeft()))
+
+            if not popup_global_rect.contains(event.globalPosition().toPoint()):
+                self.popup.close()
+                self.popup = None
+        super().mousePressEvent(event)
