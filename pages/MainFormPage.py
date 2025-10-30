@@ -1,4 +1,4 @@
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPainter
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 
@@ -10,6 +10,8 @@ SPACING = 100
 
 
 class MainFormPage(QWidget):
+    startRequested = pyqtSignal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.background = QPixmap("assets:img/background.png")
@@ -27,6 +29,7 @@ class MainFormPage(QWidget):
         form_container.addStretch(1)
 
         main_form = MainForm(parent=self)
+        main_form.startRequested.connect(self.startRequested.emit)
         form_container.addWidget(main_form, alignment=Qt.AlignmentFlag.AlignCenter)
         form_container.addStretch(1)
         main_layout.addLayout(form_container)

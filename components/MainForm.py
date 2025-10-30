@@ -1,4 +1,4 @@
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QGridLayout, QHBoxLayout, QMessageBox
 
 from components.StyledButton import StyledButton
@@ -9,6 +9,8 @@ from components.StyledTextInput import StyledTextInput
 
 
 class MainForm(QWidget):
+    startRequested = pyqtSignal()
+
     def __init__(self, parent=None):
         super().__init__(parent=parent)
 
@@ -126,3 +128,4 @@ class MainForm(QWidget):
             return
 
         print("Formularz poprawny, start testu!")
+        self.startRequested.emit()

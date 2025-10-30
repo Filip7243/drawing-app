@@ -5,13 +5,10 @@ from pathlib import Path
 from PyQt6.QtCore import QDir
 from PyQt6.QtWidgets import QApplication
 
-from controllers.FlowController import FlowController
+from components.EarlierExaminesTable import EarlierExaminesTable
 from pages.AudioStepPage import AudioStepPage
 from pages.DrawingPage import DrawingPage
-from pages.MainFormPage import MainFormPage
 from pages.RememberFigurePage import RememberFigurePage
-
-from db.database_manager_singleton import get_db
 
 CURRENT_DIRECTORY = Path(__file__).resolve().parent
 
@@ -49,25 +46,124 @@ TUTORIAL_SEQUENCE = [
 ]
 
 TEST_SEQUENCE = [
-    step_audio("03_zapamietaj_rysunek.wav"),
+    step_remember(is_tutorial=False),
+    step_draw(is_tutorial=False),
     step_remember(is_tutorial=False),
     step_draw(is_tutorial=False),
 ]
 
 
+# def main():
+#     # app = QApplication(sys.argv)
+#
+#     QDir.addSearchPath("assets", os.fspath(CURRENT_DIRECTORY / "assets"))
+#
+#     db = get_db()
+#     db.close()
+#     window = MainFormPage()
+#     # window.showMaximized()
+#     # controller = FlowController()
+#     # controller.set_sequence(TUTORIAL_SEQUENCE)
+#     # controller.set_loop(True)
+#     #
+#     # def on_tutorial_complete():
+#     #     controller.set_loop(False)
+#     #     controller.set_on_complete(None)
+#     #     controller.set_sequence(TEST_SEQUENCE)
+#     #     controller.start()
+#     #
+#     # controller.set_on_complete(on_tutorial_complete)
+#     # controller.start()
+#
+#     # sys.exit(app.exec())
+
 def main():
-    # app = QApplication(sys.argv)
+    app = QApplication(sys.argv)
 
     QDir.addSearchPath("assets", os.fspath(CURRENT_DIRECTORY / "assets"))
 
-    db = get_db()
-    db.close()
-    # window = MainFormPage()
-    # window.showMaximized()
+    table_data = [
+        {"rys": 1, "poprawne": True, "bledy": [1, 0, 0, 0, 1], "czas": 20},
+        {"rys": 2, "poprawne": False, "bledy": [0, 1, 2, 0, 0], "czas": 20},
+        {"rys": 3, "poprawne": True, "bledy": [0, 0, 1, 0, 0], "czas": 20},
+        {"rys": 4, "poprawne": True, "bledy": [0, 0, 1, 0, 0], "czas": 20},
+        {"rys": 5, "poprawne": True, "bledy": [0, 0, 1, 0, 0], "czas": 20},
+        {"rys": 6, "poprawne": True, "bledy": [0, 0, 1, 0, 0], "czas": 20},
+        {"rys": 7, "poprawne": True, "bledy": [0, 0, 1, 0, 0], "czas": 20},
+        {"rys": 8, "poprawne": True, "bledy": [0, 0, 1, 0, 0], "czas": 20},
+        {"rys": 9, "poprawne": True, "bledy": [0, 0, 1, 0, 0], "czas": 20},
+        {"rys": 10, "poprawne": True, "bledy": [0, 0, 1, 0, 0], "czas": 20},
+    ]
+    patient_data = {
+        "pacjent": "P0001",
+        "plec": "Mężczyzna",
+        "wiek": "7 lat",
+        "reka": "Prawa",
+        "wada": "-1P, +1L",
+        "uwagi": "Badanie wzroku kontrolne",
+        "funkcje": "W normie"
+    }
+    earlier_examines_data = [
+        {
+            "data": "2025-10-30",
+            "bledne": 2,
+            "poprawne": 8,
+            "czas_sredni": 1.25,
+            "czas_cal": 12.5,
+            "typy_bledow": [1, 0, 2, 0, 1],
+            "profil": "W normie",
+            "uwagi": "Brak uwag"
+        },
+        {
+            "data": "2025-10-29",
+            "bledne": 3,
+            "poprawne": 7,
+            "czas_sredni": 1.4,
+            "czas_cal": 14.0,
+            "typy_bledow": [0, 1, 1, 2, 0],
+            "profil": "Poniżej normy",
+            "uwagi": "Wymaga dalszej obserwacji"
+        }
+    ]
+    # window = ResultTable(data)
+
+    # window = PatientSummary({
+    #     "pacjent": "P0001",
+    #     "plec": "Mężczyzna",
+    #     "wiek": "7 lat",
+    #     "reka": "Prawa",
+    #     "wada": "-1P, +1L",
+    #     "uwagi": "Badanie wzroku kontrolne",
+    #     "funkcje": "W normie"
+    # })
+
+    # window = StyledLegend([
+    #     "Pom. - pominięcia",
+    #     "Zniek. - zniekształcenia",
+    #     "Rot. - rotacje",
+    #     "Przes. - przesunięcia",
+    #     "Dod. - dodatki"
+    # ])
+
+    # window = ResultsPage(table_data=table_data, patient_data=patient_data)
+
+    window = EarlierExaminesTable(data=earlier_examines_data)
+    window.showMaximized()
+
+    ## SEKWENCJA
+
+    # inicjalizacja bazy
+    # db = get_db()
+    # db.close()
+
     # controller = FlowController()
-    # controller.set_sequence(TUTORIAL_SEQUENCE)
     # controller.set_loop(True)
+    # controller.set_sequence(TUTORIAL_SEQUENCE)
     #
+    # main_page = MainFormPage()
+    # main_page.showMaximized()
+    #
+    # # Po ukończeniu tutoriala przejdź do testu
     # def on_tutorial_complete():
     #     controller.set_loop(False)
     #     controller.set_on_complete(None)
@@ -75,9 +171,14 @@ def main():
     #     controller.start()
     #
     # controller.set_on_complete(on_tutorial_complete)
-    # controller.start()
+    #
+    # # Nasłuchiwanie kliknięcia "Rozpocznij" w formularzu głównym
+    # main_page.startRequested.connect(lambda: (
+    #     main_page.close(),
+    #     controller.start()
+    # ))
 
-    # sys.exit(app.exec())
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
