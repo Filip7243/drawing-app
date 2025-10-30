@@ -25,7 +25,7 @@ class EarlierExaminesPage(QWidget):
         # -----------------------------
         # Header
         # -----------------------------
-        header = StyledHeader("Pacjent P0001")
+        header = StyledHeader("Pacjent P0001", show_back_button=True)
         main_layout.addWidget(header)
 
         # Spacer górny - wypycha content w dół
