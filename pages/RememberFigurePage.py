@@ -41,6 +41,7 @@ class RememberFigurePage(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         self.time_bar = TimeBar(max_time=3, height=1, color="#FFFFFF")
+        print(f"SELF.TIME_BAR.MAX_TIME: {self.time_bar.max_time}")
         main_layout.addWidget(self.time_bar)
 
         april_tags = AprilTagsComponent(num_tags=4)
@@ -49,6 +50,7 @@ class RememberFigurePage(QWidget):
         self.setLayout(main_layout)
 
     def start(self):
+        print("A CZY JA TUTAJ WCHODZ?")
         """Pokazuje stronę, odtwarza audio i startuje pasek czasu."""
         # When embedded in the controller's stack, avoid showing the window
         if self.parent() is None:
@@ -58,16 +60,19 @@ class RememberFigurePage(QWidget):
         self.player.stop()
         self.player.play()
 
+        print("STARTUJE")
         # start timera dopiero po pokazaniu okna
         QTimer.singleShot(0, self.start_time_bar)
 
     def start_time_bar(self):
+        print("JESTEM W STARCIE!")
         """Uruchamia licznik TimeBar."""
         self.time_bar.setTime(self.time_bar.max_time)
         self.timer.timeout.connect(self.update_time_bar)
         self.timer.start(1000)
 
     def update_time_bar(self):
+        print(f"SELF.TIME_BAR.CURRNET_TIME: {self.time_bar.current_time}")
         if self.time_bar.current_time > 0:
             self.time_bar.setTime(self.time_bar.current_time - 1)
         else:

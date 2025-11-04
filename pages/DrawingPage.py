@@ -17,6 +17,7 @@ class DrawingPage(QWidget):
         self.setWindowTitle("Draw Figure Page")
         self.audio = audio
         self.is_tutorial = is_tutorial
+        self.exporter = self.export_as_image
 
         main_layout = QVBoxLayout()
         main_layout.setSpacing(0)
@@ -64,4 +65,5 @@ class DrawingPage(QWidget):
         return self.april_tags.canvas.export_as_image()
 
     def on_done_btn_click(self):
+        print("EMITUJE!")
         self.finished.emit()  # Emitujemy sygnał dla kontrolera, że rysowanie zostało zakończone

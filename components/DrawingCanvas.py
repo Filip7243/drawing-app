@@ -118,3 +118,10 @@ class DrawingCanvas(QtWidgets.QWidget):
         elif event.type() == QtCore.QEvent.Type.TabletRelease:
             self.last_point = None
             event.accept()
+
+    def export_as_image(self) -> QtGui.QImage:
+        print("EXPORTUJE!")
+        """Zwraca kopię aktualnego obrazu jako QImage."""
+        if self.image is None:
+            return QtGui.QImage()
+        return self.image.copy()

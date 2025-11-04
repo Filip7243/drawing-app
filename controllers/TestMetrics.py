@@ -50,7 +50,8 @@ class TestMetrics:
         Attributes:
             session_dir: Ścieżka do katalogu z danymi bieżącej sesji testowej.
         """
-        self._base_dir = Path(base_dir) if base_dir else Path.cwd() / "outputs"
+        self._base_dir = Path(base_dir) if base_dir else Path.home() / "bvrt" / "outputs"
+        print(f"base dir: {self._base_dir}")
         self._session_dir: Path | None = None
         self._test_start: float | None = None
         self._test_end: float | None = None
@@ -121,7 +122,7 @@ class TestMetrics:
         :return: Dane szczegółowe o każdym z rysunków
         """
         if self._current_drawing_start is None:
-            raise ValueError("DrawingRecord.start_drawing() must be called before finish_drawing()")
+            self._current_drawing_start = perf_counter()
 
         finished_at = perf_counter()
         index = self._drawing_counter

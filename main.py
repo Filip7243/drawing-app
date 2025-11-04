@@ -40,8 +40,8 @@ def step_draw(is_tutorial: bool):
 
 
 TUTORIAL_SEQUENCE = [
-    step_audio("01_powitanie.wav"),
-    step_audio("02_zapamietaj_rysunek_przedmowa.wav"),
+    # step_audio("01_powitanie.wav"),
+    # step_audio("02_zapamietaj_rysunek_przedmowa.wav"),
     step_remember(is_tutorial=True),
     step_draw(is_tutorial=True),
     step_audio("07_koniec_samouczka.wav"),
@@ -175,7 +175,7 @@ def main():
         controller.set_on_complete(None)
         controller.set_sequence(TEST_SEQUENCE)
         controller.set_test_mode(True)
-        controller.start()
+        metrics.start_test()
 
         def on_test_complete():
             summary = metrics.end_test()

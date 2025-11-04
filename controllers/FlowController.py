@@ -26,6 +26,7 @@ class FlowController(QObject):
         self._test_mode = enabled
 
     def set_sequence(self, factories: list[Callable[[], QWidget]]):
+        print(f"USTAWIWAM FACTORIES: {factories}")
         self._factories = factories
         self._idx = -1
 
@@ -66,6 +67,7 @@ class FlowController(QObject):
             return
 
         # Create next page and insert into the persistent stack
+        print(f"TUTAJ BIERE INDEX: {self._idx}")
         page = self._factories[self._idx]()
         page.setParent(self._stack)
         self._stack.addWidget(page)
@@ -96,21 +98,33 @@ class FlowController(QObject):
         if callable(start):
             start()
 
+        if self._test_mode and getattr(page, "is_drawing_page", False):
+            if self._metrics is not None:
+                self._metrics.start_drawing()
+
         if hasattr(page, "finished"):
+            print("WCHODZE W FINISHED")
             try:
+                print(f"PROBUJE TO, TEST_MODE: {self._test_mode}")
                 if self._test_mode and getattr(page, "is_drawing_page", False) and self._metrics is not None:
                     def _on_finished_drawing(current_page=page):
                         try:
                             exporter = getattr(current_page, "exporter", None)
+                            print(f"EXPORTER: {exporter}")
                             if callable(exporter):
                                 img = exporter()
                                 self._metrics.finish_drawing(img)
-                        except Exception:
+                        except Exception as e:
                             print("COS POSZLO NIE TAK przy zapisie!")
+                            print(f"Błąd: {e}")
                             pass
+                        finally:
+                            self._advance()
 
+                    print("ROBIE CONNECT NA DRAWING")
                     page.finished.connect(_on_finished_drawing)
                 else:
+                    print("ROBIE NORMALNY CONNECT")
                     page.finished.connect(self._advance)
             except Exception:
                 print("Coś poszło nie tak na finished!")
