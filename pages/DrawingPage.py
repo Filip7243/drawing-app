@@ -1,4 +1,5 @@
 from PyQt6.QtCore import QDir, QUrl, pyqtSignal
+from PyQt6.QtGui import QImage
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 
@@ -8,6 +9,8 @@ from components.StyledButton import StyledButton
 
 class DrawingPage(QWidget):
     finished = pyqtSignal()
+
+    is_drawing_page = True  # Flaga dla FlowController żeby widział że tutaj może zbierać dane
 
     def __init__(self, parent=None, audio="05_odwzoruj_rysunek.wav", is_tutorial=True):
         super().__init__(parent)
@@ -19,8 +22,9 @@ class DrawingPage(QWidget):
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
-        april_tags = AprilTagsComponent(num_tags=4, show_canvas=True)
-        main_layout.addWidget(april_tags)
+        # Z tego komponentu jest pobierany obraz
+        self.april_tags = AprilTagsComponent(num_tags=4, show_canvas=True)
+        main_layout.addWidget(self.april_tags)
 
         button_container = QWidget()
         button_container.setStyleSheet("background-color: white;")
@@ -53,5 +57,11 @@ class DrawingPage(QWidget):
             self.player.stop()
             self.player.play()
 
+    # TODO: tu chyba jest źle, trzeba będzie poprawić
+    def export_as_image(self) -> QImage:
+        """Zwraca obraz QImage przedstawiający sam obszar rysowania.
+        """
+        return self.april_tags.canvas.export_as_image()
+
     def on_done_btn_click(self):
-        self.finished.emit()
+        self.finished.emit()  # Emitujemy sygnał dla kontrolera, że rysowanie zostało zakończone

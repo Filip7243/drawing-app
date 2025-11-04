@@ -5,6 +5,8 @@ from pathlib import Path
 from PyQt6.QtCore import QDir
 from PyQt6.QtWidgets import QApplication
 
+from controllers.FlowController import FlowController
+from controllers.TestMetrics import TestMetrics
 from pages.AudioStepPage import AudioStepPage
 from pages.DrawingPage import DrawingPage
 from pages.EarlierExaminesPage import EarlierExaminesPage
@@ -147,8 +149,8 @@ def main():
 
     # window = ResultsPage(table_data=table_data, patient_data=patient_data)
 
-    window = EarlierExaminesPage(table_data=earlier_examines_data)
-    window.showMaximized()
+    # window = EarlierExaminesPage(table_data=earlier_examines_data)
+    # window.showMaximized()
 
     ## SEKWENCJA
 
@@ -156,19 +158,36 @@ def main():
     # db = get_db()
     # db.close()
 
-    # controller = FlowController()
-    # controller.set_loop(True)
-    # controller.set_sequence(TUTORIAL_SEQUENCE)
-    #
+    metrics = TestMetrics()
+
+    controller = FlowController()
+    controller.set_loop(True)
+    controller.set_sequence(TUTORIAL_SEQUENCE)
+    controller.set_metrics(metrics)
+    metrics.start_test()
+
     # main_page = MainFormPage()
     # main_page.showMaximized()
     #
     # # Po ukończeniu tutoriala przejdź do testu
-    # def on_tutorial_complete():
-    #     controller.set_loop(False)
-    #     controller.set_on_complete(None)
-    #     controller.set_sequence(TEST_SEQUENCE)
-    #     controller.start()
+    def on_tutorial_complete():
+        controller.set_loop(False)
+        controller.set_on_complete(None)
+        controller.set_sequence(TEST_SEQUENCE)
+        controller.set_test_mode(True)
+        controller.start()
+
+        def on_test_complete():
+            summary = metrics.end_test()
+            print(summary)
+            controller.set_test_mode(False)
+            controller.set_on_complete(None)
+
+        controller.set_on_complete(on_test_complete)
+        controller.start()
+
+    controller.set_on_complete(on_tutorial_complete)
+    controller.start()
     #
     # controller.set_on_complete(on_tutorial_complete)
     #

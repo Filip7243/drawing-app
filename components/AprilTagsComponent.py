@@ -8,7 +8,7 @@ class AprilTagsComponent(QtWidgets.QWidget):
         super().__init__(parent)
 
         self.num_tags = num_tags
-        self.show_canvs = show_canvas
+        self.show_canvas = show_canvas
 
         # Lista QLabel dla tagów
         self.tags = [QtWidgets.QLabel(self) for _ in range(num_tags)]
@@ -42,7 +42,7 @@ class AprilTagsComponent(QtWidgets.QWidget):
             self.tags[4].setGeometry((w - tag_size) // 2, 0, tag_size, tag_size)  # środek góra
             self.tags[5].setGeometry((w - tag_size) // 2, h - tag_size, tag_size, tag_size)  # środek dół
 
-        if self.show_canvs:
+        if self.show_canvas:
             self.canvas.setGeometry(0, 0, w, h)
             # Tagi na wierzchu
             for tag in self.tags:

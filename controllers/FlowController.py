@@ -1,6 +1,9 @@
 from collections.abc import Callable
+
 from PyQt6.QtCore import QObject
 from PyQt6.QtWidgets import QWidget, QStackedWidget
+
+from controllers.TestMetrics import TestMetrics
 
 
 class FlowController(QObject):
@@ -13,6 +16,14 @@ class FlowController(QObject):
         self._on_complete: Callable[[], None] | None = None
         # Persistent container to avoid desktop flicker between steps
         self._stack = QStackedWidget()
+        self._metrics: TestMetrics | None = None
+        self._test_mode: bool = False  # Sprawdza, czy jesteśmy w teście (w samouczku nie pobieramy danych)
+
+    def set_metrics(self, metrics: TestMetrics | None):
+        self._metrics = metrics
+
+    def set_test_mode(self, enabled: bool):
+        self._test_mode = enabled
 
     def set_sequence(self, factories: list[Callable[[], QWidget]]):
         self._factories = factories
@@ -87,8 +98,22 @@ class FlowController(QObject):
 
         if hasattr(page, "finished"):
             try:
-                page.finished.connect(self._advance)
+                if self._test_mode and getattr(page, "is_drawing_page", False) and self._metrics is not None:
+                    def _on_finished_drawing(current_page=page):
+                        try:
+                            exporter = getattr(current_page, "exporter", None)
+                            if callable(exporter):
+                                img = exporter()
+                                self._metrics.finish_drawing(img)
+                        except Exception:
+                            print("COS POSZLO NIE TAK przy zapisie!")
+                            pass
+
+                    page.finished.connect(_on_finished_drawing)
+                else:
+                    page.finished.connect(self._advance)
             except Exception:
+                print("Coś poszło nie tak na finished!")
                 pass
 
         # Now safely remove and delete the previous page to avoid flicker
