@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from time import perf_counter
 from typing import Any
 
 from PyQt6.QtGui import QImage
+
+from db.models import TestMetaData, Image
+from db.repository.ImageRepository import ImageRepository
 
 
 @dataclass
@@ -23,6 +26,8 @@ class DrawingRecord:
     """
     index: int
     filename: str
+    patient_id: int
+    examine_id: int
     started_at: float
     finished_at: float
 
@@ -38,6 +43,8 @@ class DrawingRecord:
 
 
 class TestMetrics:
+    imageRepository = ImageRepository()
+
     def __init__(self, base_dir: Path | None = None):
         """Serwis do zbierania i zapisywania danych z badania BVRT.
 
@@ -52,6 +59,7 @@ class TestMetrics:
         """
         self._base_dir = Path(base_dir) if base_dir else Path.home() / "bvrt" / "outputs"
         print(f"base dir: {self._base_dir}")
+        self._test_meta_data: TestMetaData | None = None
         self._session_dir: Path | None = None
         self._test_start: float | None = None
         self._test_end: float | None = None
@@ -63,12 +71,17 @@ class TestMetrics:
     def session_dir(self) -> Path:
         if self._session_dir is None:
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            self._session_dir = self._base_dir / f"test_{ts}"
+            self._session_dir = (
+                    self._base_dir / f"test_{ts}_{self._test_meta_data.patient_id}_{self._test_meta_data.examine_id}"
+            )
             self._session_dir.mkdir(parents=True, exist_ok=True)
         return self._session_dir
 
+    def test_meta_data(self, test_meta_data: TestMetaData):
+        self._test_meta_data = test_meta_data
+
     def start_test(self):
-        _ = self.session_dir  # Tworzy katalog sesji jeśli nie istnieje
+        _ = self.session_dir  # Tworzy katalog sesji, jeśli nie istnieje
         self._test_start = perf_counter()
         self._records.clear()  # Usuwamy poprzednie rekordy (jeśli istnieją)
         self._drawing_counter = 0
@@ -127,15 +140,19 @@ class TestMetrics:
         finished_at = perf_counter()
         index = self._drawing_counter
         ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        filename = f"{index}_{ts}.png"
+        filename = f"{index}_{ts}_{self._test_meta_data.patient_id}_{self._test_meta_data.examine_id}.png"
         filepath = self.session_dir / filename
         image.save(str(filepath), "PNG", quality=100)
         new_record = DrawingRecord(
             index,
             filename,
+            self._test_meta_data.patient_id,
+            self._test_meta_data.examine_id,
             self._current_drawing_start,
             finished_at
         )
         self._records.append(new_record)
+        image_record = Image(self._test_meta_data.examine_id, image, timedelta(seconds=new_record.duration_s))
+        self.imageRepository.insert_image(image_record)
         self._current_drawing_start = None
         return new_record

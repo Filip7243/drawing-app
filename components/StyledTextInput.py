@@ -2,7 +2,7 @@ from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (QWidget, QLabel,
                              QVBoxLayout, QDateEdit, QLineEdit, QGraphicsDropShadowEffect)
 from PyQt6.QtCore import Qt
-
+from datetime import date
 
 class StyledTextInput(QWidget):
     def __init__(self, label_text, is_date=False, placeholder="", required=False):
@@ -11,6 +11,7 @@ class StyledTextInput(QWidget):
         layout.setSpacing(0)
 
         self.required = required
+        self.is_date = is_date
 
         if self.required:
             label_text = f"{label_text} <sup style='color:red; font-size:14px;'>*</sup>"
@@ -53,3 +54,10 @@ class StyledTextInput(QWidget):
     def is_valid(self):
         value = self.input.text().strip()
         return bool(value) if self.required else True
+
+    def get_value(self):
+        if self.is_date:
+            form_date = self.input.date()
+            return date(form_date.year(), form_date.month(), form_date.day())
+
+        return self.input.text().strip()

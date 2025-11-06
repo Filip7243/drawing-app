@@ -13,7 +13,7 @@ class DatabaseManager:
         self.password = password
         self.conn = None
         self._connect()
-        self._create_table()
+        # self._create_table()
 
     def _connect(self):
         try:

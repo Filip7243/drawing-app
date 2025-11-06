@@ -1,8 +1,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
-from PyQt6.QtWidgets import (
-    QWidget, QLabel, QVBoxLayout, QComboBox, QGraphicsDropShadowEffect
-)
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QComboBox, QGraphicsDropShadowEffect
+from enum import Enum
 
 
 class StyledDropdown(QWidget):
@@ -25,11 +24,11 @@ class StyledDropdown(QWidget):
         self.combo.setEditable(False)
         self.combo.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        self.combo.addItem(placeholder)
+        self.combo.addItem(placeholder, userData=None)
         self.combo.model().item(0).setEnabled(False)
 
         if options:
-            self.combo.addItems(options)
+            self.set_options(options)
 
         self.combo.setStyleSheet("""
             QComboBox {
@@ -64,26 +63,34 @@ class StyledDropdown(QWidget):
         self.setVisible(not is_hidden)
 
     def _handle_select(self, index):
-        if index == 0:
-            self.combo.setCurrentIndex(0)
+        if index <= 0:
             return
         if self.on_select:
-            value = self.combo.currentText()
-            self.on_select(value)
+            selected_enum = self.combo.currentData()
+            self.on_select(selected_enum)
 
     def set_options(self, options):
-        # zachowaj placeholder jako pierwszy element
+        """Przyjmuje listę Enumów lub stringów."""
         self.combo.clear()
-        self.combo.addItem("Wybierz...")
+        self.combo.addItem("Wybierz...", userData=None)
         self.combo.model().item(0).setEnabled(False)
-        if options:
-            self.combo.addItems(options)
+
+        if not options:
+            return
+
+        for opt in options:
+            if isinstance(opt, Enum):
+                # Pokazujemy nazwę w formie czytelnej (np. z dużą literą)
+                label = opt.name.capitalize().replace("_", " ")
+                self.combo.addItem(label, userData=opt)
+            else:
+                self.combo.addItem(str(opt), userData=opt)
 
     def get_value(self):
-        # zwraca None, jeśli wybrano placeholder
+        """Zwraca Enum, jeśli wybrano Enum — inaczej None."""
         if self.combo.currentIndex() == 0:
             return None
-        return self.combo.currentText()
+        return self.combo.currentData()
 
     def show_widget(self):
         self.setVisible(True)
@@ -92,6 +99,4 @@ class StyledDropdown(QWidget):
         self.setVisible(False)
 
     def is_valid(self):
-        value = self.combo.currentIndex() > 0
-        return bool(value) if self.required else True
-
+        return self.combo.currentIndex() > 0 if self.required else True

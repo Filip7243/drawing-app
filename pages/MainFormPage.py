@@ -28,9 +28,9 @@ class MainFormPage(QWidget):
         form_container = QHBoxLayout()
         form_container.addStretch(1)
 
-        main_form = MainForm(parent=self)
-        main_form.startRequested.connect(self.startRequested.emit)
-        form_container.addWidget(main_form, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.main_form = MainForm(parent=self)
+        self.main_form.startRequested.connect(self.startRequested.emit)
+        form_container.addWidget(self.main_form, alignment=Qt.AlignmentFlag.AlignCenter)
         form_container.addStretch(1)
         main_layout.addLayout(form_container)
 

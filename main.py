@@ -7,9 +7,10 @@ from PyQt6.QtWidgets import QApplication
 
 from controllers.FlowController import FlowController
 from controllers.TestMetrics import TestMetrics
+from db.models import TestMetaData
 from pages.AudioStepPage import AudioStepPage
 from pages.DrawingPage import DrawingPage
-from pages.EarlierExaminesPage import EarlierExaminesPage
+from pages.MainFormPage import MainFormPage
 from pages.RememberFigurePage import RememberFigurePage
 
 CURRENT_DIRECTORY = Path(__file__).resolve().parent
@@ -39,15 +40,40 @@ def step_draw(is_tutorial: bool):
     return _factory
 
 
+def step_form():
+    def _factory():
+        page = MainFormPage()
+        return page
+
+    return _factory
+
+
 TUTORIAL_SEQUENCE = [
-    # step_audio("01_powitanie.wav"),
-    # step_audio("02_zapamietaj_rysunek_przedmowa.wav"),
+    # step_form(),
+    step_audio("01_powitanie.wav"),
+    step_audio("02_zapamietaj_rysunek_przedmowa.wav"),
     step_remember(is_tutorial=True),
     step_draw(is_tutorial=True),
     step_audio("07_koniec_samouczka.wav"),
 ]
 
 TEST_SEQUENCE = [
+    step_remember(is_tutorial=False),
+    step_draw(is_tutorial=False),
+    step_remember(is_tutorial=False),
+    step_draw(is_tutorial=False),
+    step_remember(is_tutorial=False),
+    step_draw(is_tutorial=False),
+    step_remember(is_tutorial=False),
+    step_draw(is_tutorial=False),
+    step_remember(is_tutorial=False),
+    step_draw(is_tutorial=False),
+    step_remember(is_tutorial=False),
+    step_draw(is_tutorial=False),
+    step_remember(is_tutorial=False),
+    step_draw(is_tutorial=False),
+    step_remember(is_tutorial=False),
+    step_draw(is_tutorial=False),
     step_remember(is_tutorial=False),
     step_draw(is_tutorial=False),
     step_remember(is_tutorial=False),
@@ -127,8 +153,18 @@ def main():
             "uwagi": "Wymaga dalszej obserwacji"
         }
     ]
-    # window = ResultTable(data)
 
+    # repo = InitRepository()
+    # repo.createTypes()
+    # repo.createPatientTable()
+    # repo.createCommentsTable()
+    # repo.createPatientDegrees()
+    # repo.createExamineTable()
+    # repo.createImageTable()
+    # repo.createExamineReasonsTable()
+    # repo.createFailureTable()
+    # window = MainFormPage()
+    # window.showMaximized()
     # window = PatientSummary({
     #     "pacjent": "P0001",
     #     "plec": "Mężczyzna",
@@ -164,12 +200,12 @@ def main():
     controller.set_loop(True)
     controller.set_sequence(TUTORIAL_SEQUENCE)
     controller.set_metrics(metrics)
-    metrics.start_test()
+    # metrics.start_test()
 
-    # main_page = MainFormPage()
-    # main_page.showMaximized()
-    #
-    # # Po ukończeniu tutoriala przejdź do testu
+    main_page = MainFormPage()
+    main_page.showMaximized()
+
+    # Po ukończeniu tutoriala przejdź do testu
     def on_tutorial_complete():
         controller.set_loop(False)
         controller.set_on_complete(None)
@@ -187,15 +223,15 @@ def main():
         controller.start()
 
     controller.set_on_complete(on_tutorial_complete)
-    controller.start()
-    #
-    # controller.set_on_complete(on_tutorial_complete)
-    #
-    # # Nasłuchiwanie kliknięcia "Rozpocznij" w formularzu głównym
-    # main_page.startRequested.connect(lambda: (
-    #     main_page.close(),
-    #     controller.start()
-    # ))
+    # controller.start()
+
+    def on_start_requested():
+        meta = main_page.main_form.get_test_metadata()
+        metrics.test_meta_data(TestMetaData(examine_id=meta.examine_id, patient_id=meta.patient_id))
+        main_page.close()
+        controller.start()
+    # Nasłuchiwanie kliknięcia "Rozpocznij" w formularzu głównym
+    main_page.startRequested.connect(on_start_requested)
 
     sys.exit(app.exec())
 

@@ -31,3 +31,6 @@ class StyledTextArea(QWidget):
 
         layout.addWidget(self.textarea)
         self.setLayout(layout)
+
+    def get_value(self):
+        return self.textarea.toPlainText()
