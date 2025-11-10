@@ -7,6 +7,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any
 
+from PyQt6.QtCore import QBuffer, QIODeviceBase
 from PyQt6.QtGui import QImage
 
 from db.models import TestMetaData, Image
@@ -41,6 +42,15 @@ class DrawingRecord:
         """
         return self.finished_at - self.started_at
 
+
+def image_to_bytes(image):
+    buffer = QBuffer()
+    buffer.open(QIODeviceBase.OpenModeFlag.ReadWrite)
+    try:
+        image.save(buffer, "PNG")
+        return bytes(buffer.data())
+    finally:
+        buffer.close()
 
 class TestMetrics:
     imageRepository = ImageRepository()
@@ -152,7 +162,8 @@ class TestMetrics:
             finished_at
         )
         self._records.append(new_record)
-        image_record = Image(self._test_meta_data.examine_id, image, timedelta(seconds=new_record.duration_s))
+        image_record = Image(self._test_meta_data.examine_id, image_to_bytes(image), timedelta(seconds=new_record.duration_s))
+        print(f"INSERTING IMAGE: {image_record}")
         self.imageRepository.insert_image(image_record)
         self._current_drawing_start = None
         return new_record

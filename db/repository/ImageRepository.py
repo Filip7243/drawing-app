@@ -29,18 +29,13 @@ class ImageRepository:
             )
 
     def insert_image(self, image: Image):
-        buffer = QBuffer()
-        buffer.open(QBuffer.ReadWrite)
-        image.content.save(buffer, "PNG")
-        image_bytes = buffer.data().data()
-
         query = """
                 INSERT INTO image (examine_id, content, time)
                 VALUES (%s, %s, %s)
                 RETURNING examine_id;
                 """
         with self.db.conn.cursor() as cur:
-            cur.execute(query, (image.examine_id, image_bytes, image.time))
+            cur.execute(query, (image.examine_id, image.content, image.time))
             inserted_id = cur.fetchone()['examine_id']
             self.db.conn.commit()
             return inserted_id

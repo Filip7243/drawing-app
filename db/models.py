@@ -91,7 +91,7 @@ class Examination:
 @dataclass
 class Image:
     examine_id: int
-    content: bytes | QImage
+    content: bytes
     time: Optional[timedelta]
 
 

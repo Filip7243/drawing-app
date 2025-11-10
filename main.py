@@ -50,10 +50,10 @@ def step_form():
 
 TUTORIAL_SEQUENCE = [
     # step_form(),
-    step_audio("01_powitanie.wav"),
-    step_audio("02_zapamietaj_rysunek_przedmowa.wav"),
-    step_remember(is_tutorial=True),
-    step_draw(is_tutorial=True),
+    # step_audio("01_powitanie.wav"),
+    # step_audio("02_zapamietaj_rysunek_przedmowa.wav"),
+    # step_remember(is_tutorial=True),
+    # step_draw(is_tutorial=True),
     step_audio("07_koniec_samouczka.wav"),
 ]
 
