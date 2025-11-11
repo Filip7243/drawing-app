@@ -8,13 +8,13 @@ from components.StyledCheckBox import StyledCheckBox
 from components.StyledDropdown import StyledDropdown
 from components.StyledTextArea import StyledTextArea
 from components.StyledTextInput import StyledTextInput
-from db.repository.CommentRepository import CommentRepository
-from db.repository.ExaminationRepository import ExaminationRepository
-from db.repository.AfterwardsOpinionRepository import ExamineReasonRepository
-from db.repository.PatientDegreeRepository import PatientDegreeRepository
-from db.service.PatientService import PatientService
 from db.models import Patient, Gender, Hand, Examination, Mode, PatientDegree, School, SchoolDetails, Comment, \
     AfterwardsOpinion, TestMetaData
+from db.repository.AfterwardsOpinionRepository import ExamineReasonRepository
+from db.repository.CommentRepository import CommentRepository
+from db.repository.ExaminationRepository import ExaminationRepository
+from db.repository.PatientDegreeRepository import PatientDegreeRepository
+from db.service.PatientService import PatientService
 
 
 def calculate_age(birth_date: date):
@@ -41,6 +41,8 @@ def calculate_age(birth_date: date):
 
 class MainForm(QWidget):
     startRequested = pyqtSignal()
+    showEarlierRequested = pyqtSignal()
+
     patientService = PatientService()
     examinationRepository = ExaminationRepository()
     patientDegreeRepository = PatientDegreeRepository()
@@ -127,10 +129,10 @@ class MainForm(QWidget):
 
         start_btn = StyledButton("Rozpocznij test", color="#89c057")
         start_btn.clicked.connect(self.on_start_btn_click)
-        latest_examine_btn = StyledButton("Poprzednie badania", color="#EEB14C")
-        latest_examine_btn.setDisabled(True)
+        self.latest_examine_btn = StyledButton("Poprzednie badania", color="#EEB14C")
+        self.latest_examine_btn.clicked.connect(self.showEarlierRequested.emit)
 
-        button_layout.addWidget(latest_examine_btn)
+        button_layout.addWidget(self.latest_examine_btn)
         button_layout.addWidget(start_btn)
         button_layout.setSpacing(15)
 
@@ -159,6 +161,20 @@ class MainForm(QWidget):
         else:
             self.details_dropdown.hide_widget()
 
+    def validate_fields(self):
+        # Sprawdzamy, czy pola są wypełnione
+        if not self.first_name.get_value():
+            return False, "Pole Imie jest puste"
+        if not self.last_name.get_value():
+            return False, "Pole Nazwisko jest puste"
+        if not self.date_of_birth.get_value():
+            return False, "Pole Data urodzenia jest nieprawidłowe"
+        if self.gender_radios.get_value() is None:
+            return False, "Pole Płeć jest puste"
+        if self.hands_radios.get_value() is None:
+            return False, "Pole Ręka dominująca jest puste"
+        return True, ""
+
     def on_start_btn_click(self):
         fields = [self.first_name, self.last_name, self.date_of_birth, self.gender_radios,
                   self.eyes_radios, self.hands_radios, self.education_dropdown, self.details_dropdown, self.mode_radios]
@@ -168,24 +184,8 @@ class MainForm(QWidget):
             QMessageBox.warning(self, "Błąd", "Wypełnij wszystkie wymagane pola!")
             return
 
-        # Dodawanie/update pacjenta do bazy danych
-        print('name: ', self.first_name.get_value())
-        print('name: ', self.last_name.get_value())
-        print('date: ', self.date_of_birth.get_value())
-        print("age:", calculate_age(self.date_of_birth.get_value()))
-        print("gender:", self.gender_radios.get_value())
-        print("hand:", self.hands_radios.get_value())
-        print("eye:", self.eyes_radios.get_value())
-        print("eye desc:", self.eyes_description.get_value())
-
-        print("school", self.education_dropdown.get_value())
-        print("details", self.details_dropdown.get_value())
-        print("mode", self.mode_radios.get_value())
-        print("additional_info", self.additional_info.get_value())
-        print("examine_reason", self.examine_reason.get_value())
-
         years, months, days = calculate_age(self.date_of_birth.get_value())
-        gender_value = self.gender_radios.get_value()  # np. "Mężczyzna"
+        gender_value = self.gender_radios.get_value()
 
         if gender_value == "Mężczyzna":
             gender_enum = Gender.MEZCZYZNA

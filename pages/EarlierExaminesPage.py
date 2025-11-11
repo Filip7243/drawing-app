@@ -1,4 +1,4 @@
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPainter
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSpacerItem, QSizePolicy
 
@@ -8,12 +8,16 @@ from components.StyledLegend import StyledLegend
 
 
 class EarlierExaminesPage(QWidget):
+    backRequested = pyqtSignal()
+
     def __init__(self, parent=None, table_data=None, legend_items=None):
         super().__init__(parent)
 
         self.background = QPixmap("assets:img/background.png")
         self.scaled_background = self.background
         self.setWindowTitle("Results Page")
+
+        print("table_data: ", table_data)
 
         # -----------------------------
         # Główny layout strony
@@ -25,8 +29,10 @@ class EarlierExaminesPage(QWidget):
         # -----------------------------
         # Header
         # -----------------------------
-        header = StyledHeader("Pacjent P0001", show_back_button=True)
-        main_layout.addWidget(header)
+        self.header = StyledHeader("Pacjent P0001", show_back_button=True)
+        main_layout.addWidget(self.header)
+
+        self.header.back_button.clicked.connect(self.backRequested.emit)
 
         # Spacer górny - wypycha content w dół
         main_layout.addItem(QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
