@@ -1,16 +1,23 @@
+from datetime import timedelta
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QWidget, QTableWidget, QTableWidgetItem,
-    QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QHeaderView, QSizePolicy
+    QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QHeaderView, QSizePolicy, QDialog
 )
+
+from db.models import ImageTableDataSummary
+from db.service.ImageService import ImageService
 
 COL_NUM = 9
 ROW_NUM = 13
 
 
 class ResultTable(QWidget):
-    def __init__(self, data=None, parent=None):
+    imageService = ImageService()
+
+    def __init__(self, examine_id=None, parent=None):
         super().__init__(parent)
         self.table = QTableWidget(ROW_NUM, COL_NUM)
         self.layout = QVBoxLayout(self)
@@ -18,10 +25,15 @@ class ResultTable(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
         self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.data = data or []
+        print("GETTING DATA IMAGE:")
+        self.data = self.imageService.get_images_table_summary_by_examine_id(examine_id) or []
+        print("DATA FOUND: ", self.data)
         self._setup_ui()
-        if data:
-            self.set_data(data)
+        if self.data:
+            try:
+                self.set_data(self.data)
+            except Exception as e:
+                print("ex", e)
 
     def _safe_set_span(self, row: int, col: int, rowspan: int, colspan: int):
         """Bezpieczne ustawienie spanów, unikające błędu QTableView::setSpan"""
@@ -110,7 +122,7 @@ class ResultTable(QWidget):
     # -----------------------------
     #  Wypełnianie tabeli danymi
     # -----------------------------
-    def set_data(self, data):
+    def set_data(self, data: list[ImageTableDataSummary]):
         table = self.table
         row_index = 2
         correct_count = 0
@@ -119,13 +131,13 @@ class ResultTable(QWidget):
         tick_path = "assets:icons/tick.svg"
         cross_path = "assets:icons/cross.svg"
 
-        for i, row in enumerate(data):
+        for row in data:
             # Kolumna 0: Rys.
-            self._set_cell(row_index, 0, str(row.get("rys", i + 1)))
+            self._set_cell(row_index, 0, str(row.idx))
 
             # Kolumna 1: Poprawne?
-            is_ok = row.get("poprawne", False)
-            icon_path = tick_path if is_ok else cross_path
+            is_valid = row.is_valid
+            icon_path = tick_path if is_valid else cross_path
 
             icon_label = QLabel()
             pixmap = QPixmap(icon_path)
@@ -141,23 +153,22 @@ class ResultTable(QWidget):
 
             table.setCellWidget(row_index, 1, icon_widget)
 
-            if is_ok:
+            if is_valid:
                 correct_count += 1
             else:
                 incorrect_count += 1
 
             # Kolumna 2: czas
-            self._set_cell(row_index, 2, str(row.get("czas", "")))
+            self._set_cell(row_index, 2, str(round(row.time.total_seconds(), 2)))
 
             # Kolumny 3–7: błędy
-            errors = row.get("bledy", [0, 0, 0, 0, 0])
+            errors = row.failures
             for j, val in enumerate(errors):
                 self._set_cell(row_index, 3 + j, str(val))
 
-            # Kolumna 8: przycisk "Pokaż"
             btn = QPushButton("Pokaż")
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.clicked.connect(lambda _, idx=i: self.on_show_clicked(idx))
+            btn.clicked.connect(lambda _, idx=row.idx: self.on_show_clicked(idx))
             table.setCellWidget(row_index, 8, btn)
 
             row_index += 1
@@ -170,12 +181,21 @@ class ResultTable(QWidget):
         self._set_cell(summary_row, 0, "Podsumowanie", bold=True)
         summary_text = f"{correct_count} / {incorrect_count}"
         self._set_cell(summary_row, 1, summary_text, bold=True)
-        self._set_cell(summary_row, 2, "200", bold=True)
-        self._set_cell(summary_row, 3, "10", bold=True)
-        self._set_cell(summary_row, 4, "10", bold=True)
-        self._set_cell(summary_row, 5, "10", bold=True)
-        self._set_cell(summary_row, 6, "10", bold=True)
-        self._set_cell(summary_row, 7, "10", bold=True)
+
+        total_time = sum((item.time for item in data), timedelta())
+        total_seconds = round(total_time.total_seconds(), 2)
+        self._set_cell(summary_row, 2, str(total_seconds), bold=True)
+
+        total_failures0 = sum((item.failures[0] for item in data), 0)
+        total_failures1 = sum((item.failures[1] for item in data), 0)
+        total_failures2 = sum((item.failures[2] for item in data), 0)
+        total_failures3 = sum((item.failures[3] for item in data), 0)
+        total_failures4 = sum((item.failures[4] for item in data), 0)
+        self._set_cell(summary_row, 3, str(total_failures0), bold=True)
+        self._set_cell(summary_row, 4, str(total_failures1), bold=True)
+        self._set_cell(summary_row, 5, str(total_failures2), bold=True)
+        self._set_cell(summary_row, 6, str(total_failures3), bold=True)
+        self._set_cell(summary_row, 7, str(total_failures4), bold=True)
 
     def _set_cell(self, row, col, text, bold=False):
         """Pomocnicza funkcja ustawiająca komórkę z wyrównaniem i pogrubieniem"""
@@ -187,7 +207,33 @@ class ResultTable(QWidget):
         self.table.setItem(row, col, item)
 
     def on_show_clicked(self, row_index):
-        print(f"Kliknięto przycisk 'Pokaż' w wierszu {row_index + 1}")
+        print(f"Kliknięto przycisk 'Pokaż' w wierszu {row_index}")
+
+        # Załóżmy, że masz self.data jako listę obiektów z polem .content (bytes)
+        image_bytes = self.data[row_index - 1].content  # pobierz bajty obrazu
+
+        pixmap = QPixmap()
+        pixmap.loadFromData(image_bytes)
+
+        if pixmap.isNull():
+            print("Nie udało się wczytać obrazu.")
+            return
+
+        # Stwórz dialog (popup)
+        dialog = QDialog()
+        dialog.setWindowTitle(f"Rysunek {row_index}")
+
+        label = QLabel()
+        label.setPixmap(pixmap)
+
+        layout = QVBoxLayout()
+        layout.addWidget(label)
+        dialog.setLayout(layout)
+
+        # Ustaw rozmiar okna na rozmiar obrazu
+        dialog.resize(pixmap.width(), pixmap.height())
+
+        dialog.exec()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

@@ -163,7 +163,6 @@ class TestMetrics:
         )
         self._records.append(new_record)
         image_record = Image(self._test_meta_data.examine_id, image_to_bytes(image), timedelta(seconds=new_record.duration_s))
-        print(f"INSERTING IMAGE: {image_record}")
         self.imageRepository.insert_image(image_record)
         self._current_drawing_start = None
         return new_record

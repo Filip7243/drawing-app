@@ -103,14 +103,11 @@ class FlowController(QObject):
                 self._metrics.start_drawing()
 
         if hasattr(page, "finished"):
-            print("WCHODZE W FINISHED")
             try:
-                print(f"PROBUJE TO, TEST_MODE: {self._test_mode}")
                 if self._test_mode and getattr(page, "is_drawing_page", False) and self._metrics is not None:
                     def _on_finished_drawing(current_page=page):
                         try:
                             exporter = getattr(current_page, "exporter", None)
-                            print(f"EXPORTER: {exporter}")
                             if callable(exporter):
                                 img = exporter()
                                 self._metrics.finish_drawing(img)
@@ -121,10 +118,8 @@ class FlowController(QObject):
                         finally:
                             self._advance()
 
-                    print("ROBIE CONNECT NA DRAWING")
                     page.finished.connect(_on_finished_drawing)
                 else:
-                    print("ROBIE NORMALNY CONNECT")
                     page.finished.connect(self._advance)
             except Exception:
                 print("Coś poszło nie tak na finished!")
@@ -137,3 +132,7 @@ class FlowController(QObject):
             except Exception:
                 pass
             prev.deleteLater()
+
+    @property
+    def stack(self):
+        return self._stack

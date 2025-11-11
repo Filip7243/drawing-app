@@ -116,3 +116,25 @@ class Failure:
 class TestMetaData:
     examine_id: int
     patient_id: int
+
+
+@dataclass
+class PatientSummaryDTO:
+    id: Optional[int]
+    age_years: int
+    age_months: int
+    age_days: int
+    gender: Gender
+    dominant_hand: Hand
+    eye_description: Optional[str]
+    comment: Optional[str]
+
+
+@dataclass
+class ImageTableDataSummary:
+    idx: int
+    examine_id: int
+    content: bytes
+    time: Optional[timedelta]
+    is_valid: bool
+    failures: list[int]

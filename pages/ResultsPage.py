@@ -9,7 +9,7 @@ from components.StyledLegend import StyledLegend
 
 
 class ResultsPage(QWidget):
-    def __init__(self, parent=None, table_data=None, patient_data=None, legend_items=None):
+    def __init__(self, parent=None, examine_id=None, legend_items=None, patient_id=None):
         super().__init__(parent)
 
         self.background = QPixmap("assets:img/background.png")
@@ -40,12 +40,12 @@ class ResultsPage(QWidget):
         content_layout.setContentsMargins(20, 20, 20, 20)
 
         # Tabela wyników
-        table_widget = ResultTable(data=table_data)
+        table_widget = ResultTable(examine_id=examine_id)
         table_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         content_layout.addWidget(table_widget)
 
         # PatientSummary
-        patient_widget = PatientSummary(patient_data=patient_data)
+        patient_widget = PatientSummary(patient_id=patient_id)
         patient_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         content_layout.addWidget(patient_widget)
 

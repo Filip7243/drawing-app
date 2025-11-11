@@ -1,11 +1,11 @@
 from db.models import PatientDegree
 from db.repository.PatientDegreeRepository import PatientDegreeRepository
-from db.repository.PatientRepository import PatientRepository
 
 
 class PatientService:
     patientRepo = PatientDegreeRepository()
 
+# TODO: dokonczyc ta metode
     def createOrUpdatePatient(self, patientDegree: PatientDegree):
         """
         Metoda tworzy rekord edukacji pacjenta w bd jeśl ten nie istnieje,
@@ -24,4 +24,3 @@ class PatientService:
             return self.patientRepo.insert_patient(patient)
         else:
             return self.patientRepo.update_patient(patient, found_patient.id)
-

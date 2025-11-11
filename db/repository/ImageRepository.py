@@ -8,25 +8,37 @@ class ImageRepository:
     def __init__(self):
         self.db = get_db()
 
-    def get_image_by_examine_id(self, examine_id: int):
+    def get_images_by_examine_id(self, examine_id: int) -> list[Image]:
         query = """
                 SELECT examine_id,
                        content,
                        time
                 FROM image
-                WHERE examine_id = %s;
+                WHERE examine_id = %s
+                ORDER BY id;
                 """
-        with self.db.conn.cursor() as cur:
-            cur.execute(query, (examine_id,))
-            row = cur.fetchone()
-            if not row:
-                return None
+        try:
+            with self.db.conn.cursor() as cur:
+                cur.execute(query, (examine_id,))
+                rows = cur.fetchall()
+                if not rows:
+                    return []
 
-            return Image(
-                examine_id=row['examine_id'],
-                content=row['content'],
-                time=row['time']
-            )
+                images = []
+                for row in rows:
+                    images.append(Image(
+                        examine_id=row['examine_id'],
+                        content=row['content'],
+                        time=row['time']
+                    ))
+                return images
+        except Exception as e:
+            import traceback
+            print("Błąd przy pobieraniu danych rysunkow!")
+            print(f"Typ błędu: {type(e).__name__}")
+            print("Treść błędu:", e)
+            print(traceback.format_exc())
+            return []
 
     def insert_image(self, image: Image):
         query = """

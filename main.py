@@ -12,6 +12,7 @@ from pages.AudioStepPage import AudioStepPage
 from pages.DrawingPage import DrawingPage
 from pages.MainFormPage import MainFormPage
 from pages.RememberFigurePage import RememberFigurePage
+from pages.ResultsPage import ResultsPage
 
 CURRENT_DIRECTORY = Path(__file__).resolve().parent
 
@@ -58,24 +59,24 @@ TUTORIAL_SEQUENCE = [
 ]
 
 TEST_SEQUENCE = [
-    step_remember(is_tutorial=False),
-    step_draw(is_tutorial=False),
-    step_remember(is_tutorial=False),
-    step_draw(is_tutorial=False),
-    step_remember(is_tutorial=False),
-    step_draw(is_tutorial=False),
-    step_remember(is_tutorial=False),
-    step_draw(is_tutorial=False),
-    step_remember(is_tutorial=False),
-    step_draw(is_tutorial=False),
-    step_remember(is_tutorial=False),
-    step_draw(is_tutorial=False),
-    step_remember(is_tutorial=False),
-    step_draw(is_tutorial=False),
-    step_remember(is_tutorial=False),
-    step_draw(is_tutorial=False),
-    step_remember(is_tutorial=False),
-    step_draw(is_tutorial=False),
+    # step_remember(is_tutorial=False),
+    # step_draw(is_tutorial=False),
+    # step_remember(is_tutorial=False),
+    # step_draw(is_tutorial=False),
+    # step_remember(is_tutorial=False),
+    # step_draw(is_tutorial=False),
+    # step_remember(is_tutorial=False),
+    # step_draw(is_tutorial=False),
+    # step_remember(is_tutorial=False),
+    # step_draw(is_tutorial=False),
+    # step_remember(is_tutorial=False),
+    # step_draw(is_tutorial=False),
+    # step_remember(is_tutorial=False),
+    # step_draw(is_tutorial=False),
+    # step_remember(is_tutorial=False),
+    # step_draw(is_tutorial=False),
+    # step_remember(is_tutorial=False),
+    # step_draw(is_tutorial=False),
     step_remember(is_tutorial=False),
     step_draw(is_tutorial=False),
 ]
@@ -215,14 +216,20 @@ def main():
 
         def on_test_complete():
             summary = metrics.end_test()
-            print(summary)
+            print("SUMMARY:", summary)
             controller.set_test_mode(False)
-            controller.set_on_complete(None)
+
+            meta = main_page.main_form.get_test_metadata()
+            print("RESULTS PAGE WITH ID: ", meta.patient_id)
+            results_page = ResultsPage(examine_id=meta.examine_id, patient_id=meta.patient_id)
+            controller.stack.addWidget(results_page)
+            controller.stack.setCurrentWidget(results_page)
 
         controller.set_on_complete(on_test_complete)
         controller.start()
 
     controller.set_on_complete(on_tutorial_complete)
+
     # controller.start()
 
     def on_start_requested():
@@ -230,6 +237,7 @@ def main():
         metrics.test_meta_data(TestMetaData(examine_id=meta.examine_id, patient_id=meta.patient_id))
         main_page.close()
         controller.start()
+
     # Nasłuchiwanie kliknięcia "Rozpocznij" w formularzu głównym
     main_page.startRequested.connect(on_start_requested)
 

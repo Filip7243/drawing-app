@@ -1,5 +1,5 @@
 from db.database_manager_singleton import get_db
-from db.models import Patient, School, SchoolDetails
+from db.models import Patient, School, SchoolDetails, PatientSummaryDTO
 
 
 class PatientRepository:
@@ -122,6 +122,49 @@ class PatientRepository:
                 eye_impairment=row['eye_impairment'],
                 eye_description=row['eye_description'],
             )
+
+    def get_patient_summary_by_id(self, patient_id):
+        query = """
+                SELECT p.id              AS id,
+                       p.age_years       AS ageYears,
+                       p.age_months      AS ageMonths,
+                       p.age_days        AS ageDays,
+                       p.gender          AS gender,
+                       p.dominant_hand   AS dominantHand,
+                       p.eye_description AS eyeDescription,
+                       c.comment         AS comment
+                FROM patient p
+                         LEFT JOIN comments c ON p.id = c.patient_id
+                WHERE p.id = %s
+                """
+        try:
+            with self.db.conn.cursor() as cur:
+                cur.execute(
+                    query,
+                    (patient_id,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    print(f"Brak wyników dla patient_id={patient_id}")
+                    return None
+
+                return PatientSummaryDTO(
+                    id=row['id'],
+                    age_years=row['ageyears'],
+                    age_months=row['agemonths'],
+                    age_days=row['agedays'],
+                    gender=row['gender'],
+                    dominant_hand=row['dominanthand'],
+                    eye_description=row['eyedescription'],
+                    comment=row['comment'],
+                )
+        except Exception as e:
+            import traceback
+            print("Błąd przy pobieraniu danych pacjenta!")
+            print(f"Typ błędu: {type(e).__name__}")
+            print("Treść błędu:", e)
+            print(traceback.format_exc())
+            return None
 
     def insert_patient_degree(self, patient_id, degree: School, degree_details: SchoolDetails):
         query = """

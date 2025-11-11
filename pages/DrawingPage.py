@@ -65,5 +65,4 @@ class DrawingPage(QWidget):
         return self.april_tags.canvas.export_as_image()
 
     def on_done_btn_click(self):
-        print("EMITUJE!")
         self.finished.emit()  # Emitujemy sygnał dla kontrolera, że rysowanie zostało zakończone
