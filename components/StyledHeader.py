@@ -45,6 +45,9 @@ class StyledHeader(QWidget):
             if callable(on_back_clicked):
                 self.back_button.clicked.connect(on_back_clicked)
 
+    def set_title(self, text):
+        self.label.setText(text)
+
     def resizeEvent(self, event):
         """Aktualizuj pozycję labela przy zmianie rozmiaru"""
         super().resizeEvent(event)

@@ -138,3 +138,32 @@ class ImageTableDataSummary:
     time: Optional[timedelta]
     is_valid: bool
     failures: list[int]
+
+
+@dataclass
+class PreviousExaminationsDTO:
+    patient_id: int
+    examine_id: int
+    failure_mappings: int
+    valid_mappings: int
+    avg_time: timedelta
+    whole_time: timedelta
+    pominiecia: int
+    znieksztalcenia: int
+    perserwacje: int
+    rotacje: int
+    przemieszczenia: int
+    bledy_wzglednej_wielkosci: int
+    result: str
+    comment: Optional[str]
+    examine_date: date
+
+
+@dataclass
+class PatientIdentity:
+    id: int
+    first_name: str
+    last_name: str
+    date_of_birth: date
+    gender: Gender
+    dominant_hand: Hand

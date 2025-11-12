@@ -5,19 +5,20 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSpacerItem, QSiz
 from components.EarlierExaminesTable import EarlierExaminesTable
 from components.StyledHeader import StyledHeader
 from components.StyledLegend import StyledLegend
+from db.models import PatientIdentity
+from db.service.ExaminationService import ExaminationService
 
 
 class EarlierExaminesPage(QWidget):
     backRequested = pyqtSignal()
+    examinationService = ExaminationService()
 
-    def __init__(self, parent=None, table_data=None, legend_items=None):
+    def __init__(self, parent=None, legend_items=None, patient_identity: PatientIdentity | None = None):
         super().__init__(parent)
 
         self.background = QPixmap("assets:img/background.png")
         self.scaled_background = self.background
         self.setWindowTitle("Results Page")
-
-        print("table_data: ", table_data)
 
         # -----------------------------
         # Główny layout strony
@@ -45,9 +46,13 @@ class EarlierExaminesPage(QWidget):
         content_layout.setContentsMargins(20, 20, 20, 20)
 
         # Tabela wyników
-        table_widget = EarlierExaminesTable(data=table_data)
-        table_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        content_layout.addWidget(table_widget)
+        self.table_widget = EarlierExaminesTable(table_data=list())
+        self.table_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        content_layout.addWidget(self.table_widget)
+
+        # Jeśli przekazano patient_identity przy tworzeniu strony, wczytaj dane
+        if patient_identity:
+            self.load_patient(patient_identity)
 
         main_layout.addLayout(content_layout)
 
@@ -64,6 +69,18 @@ class EarlierExaminesPage(QWidget):
         legend = StyledLegend(items=legend_items)
         legend.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         main_layout.addWidget(legend, alignment=Qt.AlignmentFlag.AlignCenter)
+
+    def load_patient(self, patient_identity: PatientIdentity):
+        try:
+            header_text = f"Pacjent {patient_identity.id}"
+        except Exception:
+            header_text = "Pacjent XXXX"
+        self.header.set_title(header_text)
+
+        latest_examinations = self.examinationService.get_patient_previous_examinations(patient_identity)
+        self.table_widget.set_data(latest_examinations)
+        self.table_widget.table.resizeRowsToContents()
+        self.table_widget.table.setFixedHeight(self.table_widget.table.verticalHeader().length())
 
     def resizeEvent(self, event):
         if not self.background.isNull():

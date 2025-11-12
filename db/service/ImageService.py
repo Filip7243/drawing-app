@@ -3,11 +3,11 @@ from db.repository.ImageRepository import ImageRepository
 
 
 class ImageService:
-    patientRepo = ImageRepository()
+    imageRepo = ImageRepository()
 
     def get_images_table_summary_by_examine_id(self, examine_id: int) -> list[ImageTableDataSummary]:
         print("POBIRAM DANE Z IMAGE")
-        images: list[Image] = self.patientRepo.get_images_by_examine_id(examine_id=examine_id)
+        images: list[Image] = self.imageRepo.get_images_by_examine_id(examine_id=examine_id)
         results: list[ImageTableDataSummary] = []
         for idx, img in enumerate(images, start=1):
             results.append(ImageTableDataSummary(

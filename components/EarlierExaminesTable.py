@@ -6,12 +6,14 @@ from PyQt6.QtWidgets import (
 )
 
 from components.StyledTextPopUp import StyledTextPopUp
+from db.models import PreviousExaminationsDTO
 
 
 class EarlierExaminesTable(QWidget):
-    def __init__(self, data=None, parent=None):
+
+    def __init__(self, table_data: list[PreviousExaminationsDTO], parent=None):
         super().__init__(parent)
-        self.data = data or []
+        self.table_data: list[PreviousExaminationsDTO] = table_data
         self.popup = None  # referencja do aktywnego popupu
 
         self.table = QTableWidget()
@@ -24,8 +26,8 @@ class EarlierExaminesTable(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self._setup_ui()
-        if self.data:
-            self.set_data(self.data)
+        if self.table_data:
+            self.set_data(self.table_data)
             self.table.resizeRowsToContents()
             self.table.setFixedHeight(
                 self.table.verticalHeader().length()
@@ -126,7 +128,7 @@ class EarlierExaminesTable(QWidget):
     # ----------------------------------------------------------------------
     # Wypełnianie tabeli danymi z zewnątrz
     # ----------------------------------------------------------------------
-    def set_data(self, data):
+    def set_data(self, data: list[PreviousExaminationsDTO]):
         """
         data: lista słowników np.:
         [
@@ -143,6 +145,7 @@ class EarlierExaminesTable(QWidget):
             ...
         ]
         """
+        self.table_data = data
         table = self.table
         start_row = 2  # po nagłówkach
         table.setRowCount(start_row + len(data))
@@ -150,23 +153,26 @@ class EarlierExaminesTable(QWidget):
         for i, row in enumerate(data):
             r = start_row + i
             # kolumna 1: Data
-            self._set_cell(r, 0, str(row.get("data", "")))
+            self._set_cell(r, 0, str(row.examine_date))
 
             # kolumny 2–3: Odwzorowania
-            self._set_cell(r, 1, str(row.get("bledne", "")), color=Qt.GlobalColor.red, bold=True)
-            self._set_cell(r, 2, str(row.get("poprawne", "")), color=QColor("#89c057"), bold=True)
+            self._set_cell(r, 1, str(row.failure_mappings), color=Qt.GlobalColor.red, bold=True)
+            self._set_cell(r, 2, str(row.valid_mappings), color=QColor("#89c057"), bold=True)
 
             # kolumny 4–5: Czas
-            self._set_cell(r, 3, str(row.get("czas_sredni", "")))
-            self._set_cell(r, 4, str(row.get("czas_cal", "")))
+            self._set_cell(r, 3, str(round(row.avg_time.total_seconds(), 2)))
+            self._set_cell(r, 4, str(round(row.whole_time.total_seconds(), 2)))
 
             # kolumny 6–10: Typy błędów
-            typy = row.get("typy_bledow", [0, 0, 0, 0, 0])
-            for j in range(5):
-                self._set_cell(r, 5 + j, str(typy[j]))
+            # TODO: powiększyć tabele o bledy wzglednej wielkosci
+            self._set_cell(r, 5, str(row.pominiecia))
+            self._set_cell(r, 6, str(row.znieksztalcenia))
+            self._set_cell(r, 7, str(row.perserwacje))
+            self._set_cell(r, 8, str(row.rotacje))
+            self._set_cell(r, 9, str(row.przemieszczenia))
 
             # kolumna 11: Profil funkcji
-            self._set_cell(r, 10, str(row.get("profil", "")), wrap=True)
+            self._set_cell(r, 10, str(row.result), wrap=True)
 
             # kolumna 12: Uwagi (przycisk)
             btn = QPushButton("Uwagi")
@@ -174,9 +180,10 @@ class EarlierExaminesTable(QWidget):
             btn.clicked.connect(lambda _, idx=i: self.on_remarks_clicked(idx))
             table.setCellWidget(r, 11, btn)
 
-    # ----------------------------------------------------------------------
-    # Pomocnicza metoda do tworzenia komórek
-    # ----------------------------------------------------------------------
+            # ----------------------------------------------------------------------
+            # Pomocnicza metoda do tworzenia komórek
+            # ----------------------------------------------------------------------
+
     def _set_cell(self, row, col, text, bold=False, wrap=False, color=None):
         item = QTableWidgetItem(text)
         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -203,9 +210,11 @@ class EarlierExaminesTable(QWidget):
             self.popup = None
 
         # Pobierz dane dla tego wiersza
-        row_data = self.data[index] if index < len(self.data) else {}
-        uwagi_text = row_data.get("uwagi", "Brak uwag")
-        data_text = row_data.get("data", "")
+        print("INDEX:", index)
+        print("self.table_data:", self.table_data)
+        row_data = self.table_data[index] if index < len(self.table_data) else []
+        print("ROW_DATA:", row_data)
+        uwagi_text = row_data.comment
 
         # Utwórz nowy popup
         self.popup = StyledTextPopUp(

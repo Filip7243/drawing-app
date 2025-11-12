@@ -1,14 +1,12 @@
-from pages.EarlierExaminesPage import EarlierExaminesPage
-
-CONTENT_MARGINS = 100
-SPACING = 100
-
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPainter
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QStackedLayout, QMessageBox
 
 from components.MainForm import MainForm
 from components.StyledHeader import StyledHeader
+from db.models import PatientIdentity, Gender, Hand
+from db.repository.PatientRepository import PatientRepository
+from pages.EarlierExaminesPage import EarlierExaminesPage
 
 CONTENT_MARGINS = 100
 SPACING = 100
@@ -16,6 +14,7 @@ SPACING = 100
 
 class MainFormPage(QWidget):
     startRequested = pyqtSignal()
+    patientRepo = PatientRepository()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -44,9 +43,8 @@ class MainFormPage(QWidget):
         form_container.addStretch(1)
         main_layout.addLayout(form_container)
 
-        # Widget 2: EarlierExaminesPage
+        # Widget 2: EarlierExaminesPage (bez wczytywania danych na starcie)
         self.earlier_page = EarlierExaminesPage(parent=self)
-
         self.main_form.showEarlierRequested.connect(self.show_earlier_page)
         self.earlier_page.backRequested.connect(self.show_main_form)
 
@@ -66,6 +64,41 @@ class MainFormPage(QWidget):
         if not valid:
             QMessageBox.warning(self, "Błąd walidacji", msg)
             return
+
+        gender_value = self.main_form.gender_radios.get_value()
+
+        if gender_value == "Mężczyzna":
+            gender_enum = Gender.MEZCZYZNA
+        elif gender_value == "Kobieta":
+            gender_enum = Gender.KOBIETA
+        else:
+            gender_enum = None
+
+        hand_value = self.main_form.hands_radios.get_value()
+        if hand_value == "Prawa":
+            hand_enum = Hand.PRAWA
+        elif hand_value == "Lewa":
+            hand_enum = Hand.LEWA
+        else:
+            hand_enum = None
+        patient = self.patientRepo.get_patient_by_identity(
+            self.main_form.first_name.get_value(),
+            self.main_form.last_name.get_value(),
+            self.main_form.date_of_birth.get_value(),
+            gender_enum,
+            hand_enum
+        )
+        patient_identity = PatientIdentity(
+            patient.id,
+            self.main_form.first_name.get_value(),
+            self.main_form.last_name.get_value(),
+            self.main_form.date_of_birth.get_value(),
+            gender_enum,
+            hand_enum
+        )
+
+        self.earlier_page.load_patient(patient_identity)
+
         self.stacked_layout.setCurrentWidget(self.earlier_page)
 
     def show_main_form(self):

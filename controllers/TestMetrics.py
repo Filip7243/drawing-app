@@ -12,6 +12,7 @@ from PyQt6.QtGui import QImage
 
 from db.models import TestMetaData, Image
 from db.repository.ImageRepository import ImageRepository
+from db.service.ExaminationService import ExaminationService
 
 
 @dataclass
@@ -52,8 +53,10 @@ def image_to_bytes(image):
     finally:
         buffer.close()
 
+
 class TestMetrics:
     imageRepository = ImageRepository()
+    examinationService = ExaminationService()
 
     def __init__(self, base_dir: Path | None = None):
         """Serwis do zbierania i zapisywania danych z badania BVRT.
@@ -130,6 +133,10 @@ class TestMetrics:
                 } for record in self._records
             ]
         }
+        self.examinationService.update_examination_times(self._test_meta_data.examine_id,
+                                                         whole_time=timedelta(seconds=summary["total_duration"]),
+                                                         avg_time=timedelta(
+                                                             seconds=summary["total_duration"] / len(self._records)))
         # zapisujemy do JSON
         (self.session_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
         return summary
@@ -162,7 +169,8 @@ class TestMetrics:
             finished_at
         )
         self._records.append(new_record)
-        image_record = Image(self._test_meta_data.examine_id, image_to_bytes(image), timedelta(seconds=new_record.duration_s))
+        image_record = Image(self._test_meta_data.examine_id, image_to_bytes(image),
+                             timedelta(seconds=new_record.duration_s))
         self.imageRepository.insert_image(image_record)
         self._current_drawing_start = None
         return new_record
