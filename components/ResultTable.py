@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QPainter
 from PyQt6.QtWidgets import (
     QWidget, QTableWidget, QTableWidgetItem,
     QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QHeaderView, QSizePolicy, QDialog
@@ -207,32 +207,61 @@ class ResultTable(QWidget):
         self.table.setItem(row, col, item)
 
     def on_show_clicked(self, row_index):
-        print(f"Kliknięto przycisk 'Pokaż' w wierszu {row_index}")
+        image_bytes = self.data[row_index - 1].content  # bajty obrazu z bazy
+        user_pixmap = QPixmap()
+        user_pixmap.loadFromData(image_bytes)
 
-        # Załóżmy, że masz self.data jako listę obiektów z polem .content (bytes)
-        image_bytes = self.data[row_index - 1].content  # pobierz bajty obrazu
-
-        pixmap = QPixmap()
-        pixmap.loadFromData(image_bytes)
-
-        if pixmap.isNull():
-            print("Nie udało się wczytać obrazu.")
+        if user_pixmap.isNull():
+            print("Nie udało się wczytać obrazu z bazy.")
             return
 
-        # Stwórz dialog (popup)
+        background_path = f"assets:img/figures/bvrt_c_{row_index}.png"
+        background_pixmap = QPixmap(background_path)
+
+        if background_pixmap.isNull():
+            print(f"Nie udało się wczytać obrazu tła: {background_path}")
+            return
+
+        target_width = max(user_pixmap.width(), background_pixmap.width())
+        target_height = max(user_pixmap.height(), background_pixmap.height())
+
+        scaled_bg = background_pixmap.scaled(
+            target_width, target_height,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+        scaled_user = user_pixmap.scaled(
+            target_width, target_height,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+
+        bg_x = (target_width - scaled_bg.width()) // 2
+        bg_y = (target_height - scaled_bg.height()) // 2
+        user_x = (target_width - scaled_user.width()) // 2
+        user_y = (target_height - scaled_user.height()) // 2
+
+        combined_pixmap = QPixmap(target_width, target_height)
+        combined_pixmap.fill(Qt.GlobalColor.transparent)
+
+        painter = QPainter(combined_pixmap)
+        painter.drawPixmap(bg_x, bg_y, scaled_bg)  # tło
+        painter.setOpacity(0.8)  # przezroczystość użytkownika
+        painter.drawPixmap(user_x, user_y, scaled_user)  # nakładka
+        painter.end()
+
         dialog = QDialog()
         dialog.setWindowTitle(f"Rysunek {row_index}")
 
         label = QLabel()
-        label.setPixmap(pixmap)
+        label.setPixmap(combined_pixmap)
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         layout = QVBoxLayout()
         layout.addWidget(label)
         dialog.setLayout(layout)
 
-        # Ustaw rozmiar okna na rozmiar obrazu
-        dialog.resize(pixmap.width(), pixmap.height())
-
+        dialog.showMaximized()
         dialog.exec()
 
     def resizeEvent(self, event):
