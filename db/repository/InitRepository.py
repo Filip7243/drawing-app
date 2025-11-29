@@ -118,7 +118,7 @@ class InitRepository:
                     opinion     TEXT
                 );
                 CREATE INDEX IF NOT EXISTS idx_reason_examine_id
-                    ON examine_reason (examine_id);
+                    ON afterwards_opinion (examine_id);
                 """
         with self.db.conn.cursor() as cur:
             cur.execute(query)

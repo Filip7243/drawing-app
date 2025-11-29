@@ -20,13 +20,13 @@ class AudioStepPage(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(50)
 
-        self.again_btn = StyledButton(repeat_label, color="#89c057")
+        self.again_btn = StyledButton(repeat_label, color="#000000", font_color="#FFFFFF")
         self.again_btn.setFixedSize(300, 100)
         self.again_btn.setDisabled(True)
         self.again_btn.clicked.connect(self.repeatRequested.emit)
         btn_layout.addWidget(self.again_btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        self.next_btn = StyledButton(next_label, color="#89c057")
+        self.next_btn = StyledButton(next_label, color="#000000", font_color="#FFFFFF")
         self.next_btn.setFixedSize(300, 100)
         self.next_btn.setDisabled(True)
         self.next_btn.clicked.connect(self.nextRequested.emit)
