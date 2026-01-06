@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from time import perf_counter
-from typing import Any
+from typing import Any, Optional
 
 from PyQt6.QtCore import QBuffer, QIODeviceBase
 from PyQt6.QtGui import QImage
@@ -32,6 +32,7 @@ class DrawingRecord:
     examine_id: int
     started_at: float
     finished_at: float
+    display_info: Optional[dict] = field(default=None)
 
     @property
     def duration_s(self) -> float:
@@ -79,6 +80,7 @@ class TestMetrics:
         self._current_drawing_start: float | None = None
         self._records: list[DrawingRecord] = []
         self._drawing_counter: int = 0
+        self._current_display_info: dict | None = None
 
     @property
     def session_dir(self) -> Path:
@@ -98,6 +100,7 @@ class TestMetrics:
         self._test_start = perf_counter()
         self._records.clear()  # Usuwamy poprzednie rekordy (jeśli istnieją)
         self._drawing_counter = 0
+        self._current_display_info = None
 
     def end_test(self) -> dict[str, Any]:
         """
@@ -141,6 +144,18 @@ class TestMetrics:
         (self.session_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
         return summary
 
+    def save_display_info(self, display_info: dict | None):
+        """
+        NOWE: Zapisuje informacje o wyświetlaniu wzorca.
+        Wywoływane po zakończeniu RememberFigurePage.
+
+        :param display_info: Słownik z parametrami wyświetlania z RememberFigurePage.get_display_info()
+        """
+        self._current_display_info = display_info
+        if display_info:
+            print(f"📋 Zapisano display_info dla rysunku {self._drawing_counter + 1}: "
+                  f"{display_info['window_width']}x{display_info['window_height']}")
+
     def start_drawing(self):
         self._current_drawing_start = perf_counter()
         self._drawing_counter += 1
@@ -166,11 +181,14 @@ class TestMetrics:
             self._test_meta_data.patient_id,
             self._test_meta_data.examine_id,
             self._current_drawing_start,
-            finished_at
+            finished_at,
+            display_info=self._current_display_info  # NOWE: dołączamy zapisane info
         )
         self._records.append(new_record)
         image_record = Image(self._test_meta_data.examine_id, image_to_bytes(image),
                              timedelta(seconds=new_record.duration_s))
         self.imageRepository.insert_image(image_record)
         self._current_drawing_start = None
+        self._current_display_info = None  # NOWE: czyścimy po użyciu
+
         return new_record

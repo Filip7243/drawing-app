@@ -61,8 +61,8 @@ TUTORIAL_SEQUENCE = [
 TEST_SEQUENCE = [
     step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_1.png"),
     step_draw(is_tutorial=False),
-    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_2.png"),
-    # step_draw(is_tutorial=False),
+    step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_2.png"),
+    step_draw(is_tutorial=False),
     step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_3.png"),
     step_draw(is_tutorial=False),
     # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_4.png"),
@@ -221,7 +221,7 @@ def main():
 
             meta = main_page.main_form.get_test_metadata()
             print("RESULTS PAGE WITH ID: ", meta.patient_id)
-            results_page = ResultsPage(examine_id=meta.examine_id, patient_id=meta.patient_id)
+            results_page = ResultsPage(examine_id=meta.examine_id, patient_id=meta.patient_id, summary=summary)
             controller.stack.addWidget(results_page)
             controller.stack.setCurrentWidget(results_page)
 

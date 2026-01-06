@@ -119,6 +119,10 @@ class FlowController(QObject):
 
                     page.finished.connect(_on_finished_drawing)
                 else:
+                    from pages.RememberFigurePage import RememberFigurePage
+                    if isinstance(page, RememberFigurePage):
+                        display_info = page.get_display_info()
+                        self._metrics.save_display_info(display_info)
                     page.finished.connect(self._advance)
             except Exception:
                 print("Coś poszło nie tak na finished!")

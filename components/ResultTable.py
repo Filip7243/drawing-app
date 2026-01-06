@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
     QWidget, QTableWidget, QTableWidgetItem,
     QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QHeaderView, QSizePolicy, QDialog
 )
+from PySide6.QtWidgets import QSlider
 
 from db.models import ImageTableDataSummary
 from db.service.ImageService import ImageService
@@ -17,7 +18,7 @@ ROW_NUM = 13
 class ResultTable(QWidget):
     imageService = ImageService()
 
-    def __init__(self, examine_id=None, parent=None):
+    def __init__(self, examine_id=None, parent=None, summary=None):
         super().__init__(parent)
         self.table = QTableWidget(ROW_NUM, COL_NUM)
         self.layout = QVBoxLayout(self)
@@ -28,6 +29,7 @@ class ResultTable(QWidget):
         print("GETTING DATA IMAGE:")
         self.data = self.imageService.get_images_table_summary_by_examine_id(examine_id) or []
         print("DATA FOUND: ", self.data)
+        self.summary = summary
         self._setup_ui()
         if self.data:
             try:
@@ -207,17 +209,23 @@ class ResultTable(QWidget):
         self.table.setItem(row, col, item)
 
     def on_show_clicked(self, row_index):
+        """
+        Wyświetla nałożenie rysunku dziecka i obrazu wzorcowego.
+        Uwzględnia sposób skalowania z RememberFigurePage.
+        """
         # === 1. Wczytaj rysunek dziecka (CANVAS) ===
         image_bytes = self.data[row_index - 1].content
         user_pixmap = QPixmap()
         user_pixmap.loadFromData(image_bytes)
+        print(f'display_info" {self.summary.display_info}')
 
         if user_pixmap.isNull():
             print("Nie udało się wczytać rysunku dziecka.")
             return
 
-        canvas_width = user_pixmap.width()  # np. 1536
-        canvas_height = user_pixmap.height()  # np. 758
+        canvas_width = user_pixmap.width()
+        canvas_height = user_pixmap.height()
+        print(f"Canvas: {canvas_width}x{canvas_height}")
 
         # === 2. Wczytaj obraz wzorcowy ===
         background_path = f"assets:img/figures/bvrt_c_{row_index}.png"
@@ -227,47 +235,79 @@ class ResultTable(QWidget):
             print(f"Nie udało się wczytać obrazu wzorcowego: {background_path}")
             return
 
-        # === 3. Przeskaluj wzorzec DO CANVASU (bez zniekształceń) ===
+        original_width = background_pixmap.width()
+        original_height = background_pixmap.height()
+        print(f"Wzorzec oryginalny: {original_width}x{original_height}")
+
+        # === 3. Oblicz wymiary obszaru canvas podczas zapamiętywania ===
+        # W RememberFigurePage był TimeBar (height=1) + AprilTags
+        # Musimy obliczyć jaki był stosunek wysokości AprilTags do całego okna
+
+        # Zakładając standardowe proporcje ekranu (np. 16:9 lub rzeczywiste z Twojego systemu)
+        # Możesz też zapisać te wartości podczas zapamiętywania
+        timebar_height = 1  # z TimeBar(max_time=3, height=1)
+
+        # Proporcje obszaru rysowania (bez TimeBar)
+        remember_canvas_height = canvas_height - timebar_height
+        remember_canvas_width = canvas_width
+
+        # === 4. Przeskaluj wzorzec TAK JAK BYŁ podczas zapamiętywania ===
         scaled_bg = background_pixmap.scaled(
-            canvas_width,
-            canvas_height,
+            remember_canvas_width,
+            remember_canvas_height,
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation
         )
 
-        bg_x = (canvas_width - scaled_bg.width()) // 2
-        bg_y = (canvas_height - scaled_bg.height()) // 2
+        # Pozycja wycentrowana (jak w RememberFigurePage.paintEvent)
+        bg_x = (remember_canvas_width - scaled_bg.width()) // 2
+        bg_y = timebar_height + (remember_canvas_height - scaled_bg.height()) // 2
 
-        # === 4. Połącz obrazy ===
+        print(f"Wzorzec przeskalowany: {scaled_bg.width()}x{scaled_bg.height()}")
+        print(f"Pozycja wzorca: ({bg_x}, {bg_y})")
+
+        # === 5. Utwórz obraz wynikowy ===
         combined_pixmap = QPixmap(canvas_width, canvas_height)
         combined_pixmap.fill(Qt.GlobalColor.white)
 
         painter = QPainter(combined_pixmap)
 
-        # Obraz zapamiętywany (wzorzec)
+        # Rysuj wzorzec w tej samej pozycji co podczas zapamiętywania
         painter.drawPixmap(bg_x, bg_y, scaled_bg)
 
-        # Rysunek dziecka (1:1)
-        painter.setOpacity(0.6)
+        # Nałóż rysunek dziecka z przezroczystością
+        painter.setOpacity(0.5)
         painter.drawPixmap(0, 0, user_pixmap)
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Difference)
-        painter.setPen(QPen(Qt.GlobalColor.red, 2))
+
+        # Opcjonalnie: ramka pokazująca gdzie był wzorzec
+        painter.setOpacity(1.0)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+        painter.setPen(QPen(Qt.GlobalColor.red, 2, Qt.PenStyle.DashLine))
         painter.drawRect(bg_x, bg_y, scaled_bg.width(), scaled_bg.height())
 
         painter.end()
 
-        # === 5. Wyświetl ===
+        # === 6. Wyświetl ===
         dialog = QDialog()
-        dialog.setWindowTitle(f"Rysunek {row_index}")
+        dialog.setWindowTitle(f"Porównanie - Rysunek {row_index}")
 
-        label = QLabel()
-        label.setPixmap(combined_pixmap)
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Dodaj informacje
+        info_label = QLabel(
+            f"Czerwona ramka = pozycja wzorca podczas zapamiętywania\n"
+            f"Przezroczysty obraz = rysunek dziecka"
+        )
+        info_label.setStyleSheet("background-color: #ffffcc; padding: 10px;")
+        info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        image_label = QLabel()
+        image_label.setPixmap(combined_pixmap)
+        image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         layout = QVBoxLayout()
-        layout.addWidget(label)
-        dialog.setLayout(layout)
+        layout.addWidget(info_label)
+        layout.addWidget(image_label)
 
+        dialog.setLayout(layout)
         dialog.showMaximized()
         dialog.exec()
 

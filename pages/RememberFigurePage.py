@@ -26,6 +26,8 @@ class RememberFigurePage(QWidget):
 
         self.is_tutorial = is_tutorial
 
+        self.display_info = None
+
         self.timer = QTimer(self)
         self.player = QMediaPlayer()
         self.audio_output = QAudioOutput()
@@ -87,10 +89,36 @@ class RememberFigurePage(QWidget):
         if not self.background.isNull():
             self.scaled_background = self.background.scaled(
                 self.size(),
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
+
+        # NOWE: Aktualizuj display_info przy każdej zmianie rozmiaru
+        self.update_display_info()
+
         super().resizeEvent(event)
+
+    def update_display_info(self):
+        """NOWE: Aktualizuje informacje o wyświetlaniu obrazu"""
+        if not self.scaled_background.isNull():
+            x = (self.width() - self.scaled_background.width()) // 2
+            y = (self.height() - self.scaled_background.height()) // 2
+
+            self.display_info = {
+                'window_width': self.width(),
+                'window_height': self.height(),
+                'image_width': self.scaled_background.width(),
+                'image_height': self.scaled_background.height(),
+                'offset_x': x,
+                'offset_y': y,
+                'original_width': self.background.width(),
+                'original_height': self.background.height(),
+                'timebar_height': self.time_bar.height()
+            }
+
+    def get_display_info(self):
+        """NOWE: Zwraca informacje o tym jak obraz był wyświetlany"""
+        return self.display_info
 
     def paintEvent(self, event):
         """Rysuje przeskalowane tło."""
