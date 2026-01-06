@@ -67,7 +67,6 @@ class FlowController(QObject):
             return
 
         # Create next page and insert into the persistent stack
-        print(f"TUTAJ BIERE INDEX: {self._idx}")
         page = self._factories[self._idx]()
         page.setParent(self._stack)
         self._stack.addWidget(page)

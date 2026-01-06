@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap, QPainter
+from PyQt6.QtGui import QPixmap, QPainter, QPen, QColor
 from PyQt6.QtWidgets import (
     QWidget, QTableWidget, QTableWidgetItem,
     QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QHeaderView, QSizePolicy, QDialog
@@ -207,49 +207,56 @@ class ResultTable(QWidget):
         self.table.setItem(row, col, item)
 
     def on_show_clicked(self, row_index):
-        image_bytes = self.data[row_index - 1].content  # bajty obrazu z bazy
+        # === 1. Wczytaj rysunek dziecka (CANVAS) ===
+        image_bytes = self.data[row_index - 1].content
         user_pixmap = QPixmap()
         user_pixmap.loadFromData(image_bytes)
 
         if user_pixmap.isNull():
-            print("Nie udało się wczytać obrazu z bazy.")
+            print("Nie udało się wczytać rysunku dziecka.")
             return
 
+        canvas_width = user_pixmap.width()  # np. 1536
+        canvas_height = user_pixmap.height()  # np. 758
+
+        # === 2. Wczytaj obraz wzorcowy ===
         background_path = f"assets:img/figures/bvrt_c_{row_index}.png"
         background_pixmap = QPixmap(background_path)
 
         if background_pixmap.isNull():
-            print(f"Nie udało się wczytać obrazu tła: {background_path}")
+            print(f"Nie udało się wczytać obrazu wzorcowego: {background_path}")
             return
 
-        target_width = max(user_pixmap.width(), background_pixmap.width())
-        target_height = max(user_pixmap.height(), background_pixmap.height())
-
+        # === 3. Przeskaluj wzorzec DO CANVASU (bez zniekształceń) ===
         scaled_bg = background_pixmap.scaled(
-            target_width, target_height,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        )
-        scaled_user = user_pixmap.scaled(
-            target_width, target_height,
+            canvas_width,
+            canvas_height,
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation
         )
 
-        bg_x = (target_width - scaled_bg.width()) // 2
-        bg_y = (target_height - scaled_bg.height()) // 2
-        user_x = (target_width - scaled_user.width()) // 2
-        user_y = (target_height - scaled_user.height()) // 2
+        bg_x = (canvas_width - scaled_bg.width()) // 2
+        bg_y = (canvas_height - scaled_bg.height()) // 2
 
-        combined_pixmap = QPixmap(target_width, target_height)
-        combined_pixmap.fill(Qt.GlobalColor.transparent)
+        # === 4. Połącz obrazy ===
+        combined_pixmap = QPixmap(canvas_width, canvas_height)
+        combined_pixmap.fill(Qt.GlobalColor.white)
 
         painter = QPainter(combined_pixmap)
-        painter.drawPixmap(bg_x, bg_y, scaled_bg)  # tło
-        painter.setOpacity(0.8)  # przezroczystość użytkownika
-        painter.drawPixmap(user_x, user_y, scaled_user)  # nakładka
+
+        # Obraz zapamiętywany (wzorzec)
+        painter.drawPixmap(bg_x, bg_y, scaled_bg)
+
+        # Rysunek dziecka (1:1)
+        painter.setOpacity(0.6)
+        painter.drawPixmap(0, 0, user_pixmap)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Difference)
+        painter.setPen(QPen(Qt.GlobalColor.red, 2))
+        painter.drawRect(bg_x, bg_y, scaled_bg.width(), scaled_bg.height())
+
         painter.end()
 
+        # === 5. Wyświetl ===
         dialog = QDialog()
         dialog.setWindowTitle(f"Rysunek {row_index}")
 

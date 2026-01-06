@@ -16,7 +16,7 @@ class AprilTagsComponent(QtWidgets.QWidget):
             tag.setScaledContents(True)
             tag.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
-            path = f"assets/tag/tag{i}.jpg"
+            path = f"assets/tag/tag{i}.jpg"  # TODO: to chyba do poprawy
             pixmap = QtGui.QPixmap(path)
             tag.setPixmap(pixmap)
             tag.show()

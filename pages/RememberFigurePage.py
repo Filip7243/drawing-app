@@ -19,6 +19,8 @@ class RememberFigurePage(QWidget):
         self.setWindowTitle("Remember Figure Page")
 
         self.background = QPixmap(bg_path)
+        print(f'height pixmap: {self.background.height()}')
+        print(f'width pixmap: {self.background.width()}')
         self.scaled_background = self.background
         self.audio = audio
 

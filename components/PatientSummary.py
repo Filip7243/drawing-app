@@ -54,7 +54,6 @@ class PatientSummary(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
-        print("WHAAT?!")
         try:
             main_layout = QVBoxLayout(self)
             main_layout.setContentsMargins(20, 20, 20, 20)
@@ -130,7 +129,7 @@ class PatientSummary(QWidget):
 
         except Exception as e:
             import traceback
-            print("💥 Błąd w setup_ui:", e)
+            print("łąd w setup_ui:", e)
             print(traceback.format_exc())
 
     def on_show_clicked(self):

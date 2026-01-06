@@ -41,6 +41,7 @@ class DrawingPage(QWidget):
         button_layout.addStretch()
 
         button_container.setFixedHeight(done_button.sizeHint().height())
+        print(f'btn: {button_container.sizeHint().height()}')
         main_layout.addWidget(button_container)
         self.setLayout(main_layout)
 
@@ -58,11 +59,13 @@ class DrawingPage(QWidget):
             self.player.stop()
             self.player.play()
 
-    # TODO: tu chyba jest źle, trzeba będzie poprawić
     def export_as_image(self) -> QImage:
         """Zwraca obraz QImage przedstawiający sam obszar rysowania.
         """
-        return self.april_tags.canvas.export_as_image()
+        image = self.april_tags.canvas.export_as_image()
+        print(image.height())
+        print(image.width())
+        return image
 
     def on_done_btn_click(self):
         self.finished.emit()  # Emitujemy sygnał dla kontrolera, że rysowanie zostało zakończone
