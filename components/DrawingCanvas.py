@@ -2,6 +2,12 @@ from PyQt6 import QtWidgets, QtGui, QtCore
 
 
 class DrawingCanvas(QtWidgets.QWidget):
+    firstStroke = QtCore.pyqtSignal()
+    strokeStarted = QtCore.pyqtSignal()
+    strokeFinished = QtCore.pyqtSignal()
+    undoClicked = QtCore.pyqtSignal()
+    redoClicked = QtCore.pyqtSignal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StaticContents)
@@ -11,6 +17,42 @@ class DrawingCanvas(QtWidgets.QWidget):
         self.last_point = None
         self.pen_color = QtGui.QColor("black")
         self.pen_width = 2
+        self._first_stroke_recorded = False
+        self._undo_stack = []
+        self._redo_stack = []
+        self._max_undo_steps = 50
+
+    def _save_state(self):
+        """Zapisuje aktualny obraz na stosie undo."""
+        if self.image is not None:
+            self._undo_stack.append(self.image.copy())
+            if len(self._undo_stack) > self._max_undo_steps:
+                self._undo_stack.pop(0)
+            self._redo_stack.clear()
+
+    def undo(self):
+        """Cofa ostatnią zmianę."""
+        if not self._undo_stack:
+            return
+
+        if self.image is not None:
+            self._redo_stack.append(self.image.copy())
+        
+        self.image = self._undo_stack.pop()
+        self.undoClicked.emit()
+        self.update()
+
+    def redo(self):
+        """Ponawia ostatnio cofniętą zmianę."""
+        if not self._redo_stack:
+            return
+
+        if self.image is not None:
+            self._undo_stack.append(self.image.copy())
+        
+        self.image = self._redo_stack.pop()
+        self.redoClicked.emit()
+        self.update()
 
     def setPenColor(self, color):
         self.pen_color = QtGui.QColor(color)
@@ -62,6 +104,11 @@ class DrawingCanvas(QtWidgets.QWidget):
 
     def mousePressEvent(self, event: QtGui.QMouseEvent):
         if event.button() == QtCore.Qt.MouseButton.LeftButton and self.image is not None:
+            self._save_state()
+            if not self._first_stroke_recorded:
+                self._first_stroke_recorded = True
+                self.firstStroke.emit()
+            self.strokeStarted.emit()
             self.last_point = self._mapEventToImage(event.position())
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
@@ -85,6 +132,7 @@ class DrawingCanvas(QtWidgets.QWidget):
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self.strokeFinished.emit()
             self.last_point = None
 
     def tabletEvent(self, event: QtGui.QTabletEvent):
@@ -98,6 +146,11 @@ class DrawingCanvas(QtWidgets.QWidget):
 
         mapped_pos = self._mapEventToImage(event.position())
         if event.type() == QtCore.QEvent.Type.TabletPress:
+            self._save_state()
+            if not self._first_stroke_recorded:
+                self._first_stroke_recorded = True
+                self.firstStroke.emit()
+            self.strokeStarted.emit()
             self.last_point = mapped_pos
             event.accept()
 
@@ -116,6 +169,7 @@ class DrawingCanvas(QtWidgets.QWidget):
             event.accept()
 
         elif event.type() == QtCore.QEvent.Type.TabletRelease:
+            self.strokeFinished.emit()
             self.last_point = None
             event.accept()
 

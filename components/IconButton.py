@@ -1,6 +1,6 @@
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtWidgets import QPushButton, QGraphicsDropShadowEffect
-from PyQt6.QtGui import QColor, QIcon
+from PyQt6.QtGui import QColor, QIcon, QTransform
 
 
 def darken_color(hex_color, factor=0.85):
@@ -18,11 +18,12 @@ def darken_color(hex_color, factor=0.85):
 
 
 class IconButton(QPushButton):
-    def __init__(self, icon_path, color="#89c057", icon_size=24):
+    def __init__(self, icon_path, color="#89c057", icon_size=24, transform=None):
         """
         :param icon_path: Ścieżka do pliku ikony (np. "icons/back.png")
         :param color: Kolor tła przycisku
         :param icon_size: Rozmiar ikony w pikselach
+        :param transform: Opcjonalna transformacja ikony (QTransform)
         """
         super().__init__()
 
@@ -31,6 +32,11 @@ class IconButton(QPushButton):
 
         # Ustawienie ikony
         icon = QIcon(icon_path)
+        if transform:
+            pixmap = icon.pixmap(icon_size, icon_size)
+            pixmap = pixmap.transformed(transform)
+            icon = QIcon(pixmap)
+            
         self.setIcon(icon)
         self.setIconSize(QSize(icon_size, icon_size))
 

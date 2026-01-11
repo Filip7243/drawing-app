@@ -100,6 +100,16 @@ class FlowController(QObject):
         if self._test_mode and getattr(page, "is_drawing_page", False):
             if self._metrics is not None:
                 self._metrics.start_drawing()
+                if hasattr(page, "firstStroke"):
+                    page.firstStroke.connect(self._metrics.record_first_stroke)
+                if hasattr(page, "strokeStarted"):
+                    page.strokeStarted.connect(self._metrics.record_stroke_start)
+                if hasattr(page, "strokeFinished"):
+                    page.strokeFinished.connect(self._metrics.record_stroke_finish)
+                if hasattr(page, "undoClicked"):
+                    page.undoClicked.connect(self._metrics.record_undo)
+                if hasattr(page, "redoClicked"):
+                    page.redoClicked.connect(self._metrics.record_redo)
 
         if hasattr(page, "finished"):
             try:

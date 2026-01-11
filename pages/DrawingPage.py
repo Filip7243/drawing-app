@@ -1,14 +1,20 @@
 from PyQt6.QtCore import QDir, QUrl, pyqtSignal
-from PyQt6.QtGui import QImage
+from PyQt6.QtGui import QImage, QTransform
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 
 from components.AprilTagsComponent import AprilTagsComponent
 from components.StyledButton import StyledButton
+from components.IconButton import IconButton
 
 
 class DrawingPage(QWidget):
     finished = pyqtSignal()
+    firstStroke = pyqtSignal()
+    strokeStarted = pyqtSignal()
+    strokeFinished = pyqtSignal()
+    undoClicked = pyqtSignal()
+    redoClicked = pyqtSignal()
 
     is_drawing_page = True  # Flaga dla FlowController żeby widział że tutaj może zbierać dane
 
@@ -25,13 +31,35 @@ class DrawingPage(QWidget):
 
         # Z tego komponentu jest pobierany obraz
         self.april_tags = AprilTagsComponent(num_tags=6, show_canvas=True)
+        self.april_tags.canvas.firstStroke.connect(self.firstStroke.emit)
+        self.april_tags.canvas.strokeStarted.connect(self.strokeStarted.emit)
+        self.april_tags.canvas.strokeFinished.connect(self.strokeFinished.emit)
+        self.april_tags.canvas.undoClicked.connect(self.undoClicked.emit)
+        self.april_tags.canvas.redoClicked.connect(self.redoClicked.emit)
         main_layout.addWidget(self.april_tags)
 
         button_container = QWidget()
         button_container.setStyleSheet("background-color: white;")
         button_layout = QHBoxLayout(button_container)
-        button_layout.setContentsMargins(0, 0, 0, 0)
-        button_layout.setSpacing(0)
+        button_layout.setContentsMargins(20, 0, 20, 0)
+        button_layout.setSpacing(20)
+
+        # Lewa strona - undo/redo
+        undo_redo_layout = QHBoxLayout()
+        self.undo_button = IconButton("assets/icons/arrow-left.png", color="#FFFFFF")
+        self.undo_button.setToolTip("Cofnij")
+        self.undo_button.clicked.connect(self.april_tags.canvas.undo)
+        
+        # Dla Redo użyjemy tej samej ikony ale odbitej.
+        redo_transform = QTransform().scale(-1, 1)
+        self.redo_button = IconButton("assets/icons/arrow-left.png", color="#FFFFFF", transform=redo_transform)
+        self.redo_button.setToolTip("Ponów")
+        self.redo_button.clicked.connect(self.april_tags.canvas.redo)
+        
+        undo_redo_layout.addWidget(self.undo_button)
+        undo_redo_layout.addWidget(self.redo_button)
+        
+        button_layout.addLayout(undo_redo_layout)
 
         done_button = StyledButton("Dalej", color="#000000", font_color="#FFFFFF")
         done_button.setFixedWidth(500)
