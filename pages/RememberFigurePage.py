@@ -48,7 +48,7 @@ class RememberFigurePage(QWidget):
         print(f"SELF.TIME_BAR.MAX_TIME: {self.time_bar.max_time}")
         main_layout.addWidget(self.time_bar)
 
-        april_tags = AprilTagsComponent(num_tags=4)
+        april_tags = AprilTagsComponent(num_tags=6)
         main_layout.addWidget(april_tags)
 
         self.setLayout(main_layout)

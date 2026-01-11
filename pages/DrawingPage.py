@@ -24,7 +24,7 @@ class DrawingPage(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         # Z tego komponentu jest pobierany obraz
-        self.april_tags = AprilTagsComponent(num_tags=4, show_canvas=True)
+        self.april_tags = AprilTagsComponent(num_tags=6, show_canvas=True)
         main_layout.addWidget(self.april_tags)
 
         button_container = QWidget()
