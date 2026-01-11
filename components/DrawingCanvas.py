@@ -5,6 +5,7 @@ class DrawingCanvas(QtWidgets.QWidget):
     firstStroke = QtCore.pyqtSignal()
     strokeStarted = QtCore.pyqtSignal()
     strokeFinished = QtCore.pyqtSignal()
+    strokeDataCollected = QtCore.pyqtSignal(dict)
     undoClicked = QtCore.pyqtSignal()
     redoClicked = QtCore.pyqtSignal()
 
@@ -21,6 +22,13 @@ class DrawingCanvas(QtWidgets.QWidget):
         self._undo_stack = []
         self._redo_stack = []
         self._max_undo_steps = 50
+
+        # Metryki bieżącej kreski
+        self._current_stroke_points = []
+        self._current_stroke_overdraw_count = 0
+        self._current_stroke_total_count = 0
+        self._current_stroke_overdraw_cells = {} # NOWE: Licznik nadrysowanych pikseli na komórkę
+        self._grid_size = 40
 
     def _save_state(self):
         """Zapisuje aktualny obraz na stosie undo."""
@@ -109,7 +117,12 @@ class DrawingCanvas(QtWidgets.QWidget):
                 self._first_stroke_recorded = True
                 self.firstStroke.emit()
             self.strokeStarted.emit()
-            self.last_point = self._mapEventToImage(event.position())
+            pos = self._mapEventToImage(event.position())
+            self.last_point = pos
+            self._current_stroke_points = [pos]
+            self._current_stroke_overdraw_count = 0
+            self._current_stroke_total_count = 0
+            self._current_stroke_overdraw_cells = {}
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
         if (
@@ -117,13 +130,26 @@ class DrawingCanvas(QtWidgets.QWidget):
             and self.last_point is not None
             and self.image is not None
         ):
+            current_point = self._mapEventToImage(event.position())
+            
+            # Detekcja nadrysowywania
+            pixel_color = QtGui.QColor(self.image.pixel(current_point))
+            if pixel_color.rgb() != QtGui.QColor("#FFFFFF").rgb():
+                self._current_stroke_overdraw_count += 1
+                
+                # Zapisywanie nadrysowania w komórce
+                cx, cy = current_point.x() // self._grid_size, current_point.y() // self._grid_size
+                self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
+            
+            self._current_stroke_total_count += 1
+            self._current_stroke_points.append(current_point)
+
             painter = QtGui.QPainter(self.image)
             pen = QtGui.QPen(self.pen_color, self.pen_width,
                              QtCore.Qt.PenStyle.SolidLine,
                              QtCore.Qt.PenCapStyle.RoundCap,
                              QtCore.Qt.PenJoinStyle.RoundJoin)
             painter.setPen(pen)
-            current_point = self._mapEventToImage(event.position())
             painter.drawLine(self.last_point, current_point)
             painter.end()
 
@@ -132,8 +158,66 @@ class DrawingCanvas(QtWidgets.QWidget):
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self._emit_stroke_data()
             self.strokeFinished.emit()
             self.last_point = None
+
+    def _emit_stroke_data(self):
+        """Oblicza i emituje metryki dla zakończonej kreski."""
+        if not self._current_stroke_points:
+            return
+
+        # Obliczanie długości ścieżki i zmian kierunku
+        path_length = 0
+        direction_changes = 0
+        min_x = max_x = self._current_stroke_points[0].x()
+        min_y = max_y = self._current_stroke_points[0].y()
+
+        import math
+
+        last_angle = None
+        # Próg zmiany kierunku (w stopniach) - np. 45 stopni
+        ANGLE_THRESHOLD = 45 
+
+        for i in range(1, len(self._current_stroke_points)):
+            p1 = self._current_stroke_points[i-1]
+            p2 = self._current_stroke_points[i]
+            
+            dx = p2.x() - p1.x()
+            dy = p2.y() - p1.y()
+            
+            dist = (dx**2 + dy**2)**0.5
+            path_length += dist
+            
+            if dist > 2: # Ignorujemy bardzo małe ruchy (szum)
+                current_angle = math.atan2(dy, dx)
+                if last_angle is not None:
+                    diff = abs(math.degrees(current_angle - last_angle))
+                    if diff > 180:
+                        diff = 360 - diff
+                    if diff > ANGLE_THRESHOLD:
+                        print(f"DIRECTION CHAGED DIFF: {diff}")
+                        direction_changes += 1
+                last_angle = current_angle
+
+            min_x = min(min_x, p2.x())
+            max_x = max(max_x, p2.x())
+            min_y = min(min_y, p2.y())
+            max_y = max(max_y, p2.y())
+
+        bbox_area = (max_x - min_x) * (max_y - min_y)
+
+        data = {
+            'overdrawn_pixels': self._current_stroke_overdraw_count,
+            'total_pixels': self._current_stroke_total_count,
+            'points': self._current_stroke_points,
+            'path_length': path_length,
+            'bounding_box_area': bbox_area,
+            'direction_changes': direction_changes,
+            'overdraw_cells': self._current_stroke_overdraw_cells
+        }
+        self.strokeDataCollected.emit(data)
+        self._current_stroke_points = []
 
     def tabletEvent(self, event: QtGui.QTabletEvent):
         """Obsługa rysika z naciskiem."""
@@ -152,9 +236,25 @@ class DrawingCanvas(QtWidgets.QWidget):
                 self.firstStroke.emit()
             self.strokeStarted.emit()
             self.last_point = mapped_pos
+            self._current_stroke_points = [mapped_pos]
+            self._current_stroke_overdraw_count = 0
+            self._current_stroke_total_count = 0
+            self._current_stroke_overdraw_cells = {}
             event.accept()
 
         elif event.type() == QtCore.QEvent.Type.TabletMove and self.last_point is not None:
+            # Detekcja nadrysowywania
+            pixel_color = QtGui.QColor(self.image.pixel(mapped_pos))
+            if pixel_color.rgb() != QtGui.QColor("#FFFFFF").rgb():
+                self._current_stroke_overdraw_count += 1
+                
+                # Zapisywanie nadrysowania w komórce
+                cx, cy = mapped_pos.x() // self._grid_size, mapped_pos.y() // self._grid_size
+                self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
+            
+            self._current_stroke_total_count += 1
+            self._current_stroke_points.append(mapped_pos)
+
             painter = QtGui.QPainter(self.image)
             pen = QtGui.QPen(self.pen_color, self.pen_width,
                              QtCore.Qt.PenStyle.SolidLine,
@@ -169,6 +269,7 @@ class DrawingCanvas(QtWidgets.QWidget):
             event.accept()
 
         elif event.type() == QtCore.QEvent.Type.TabletRelease:
+            self._emit_stroke_data()
             self.strokeFinished.emit()
             self.last_point = None
             event.accept()

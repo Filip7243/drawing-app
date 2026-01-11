@@ -106,6 +106,8 @@ class FlowController(QObject):
                     page.strokeStarted.connect(self._metrics.record_stroke_start)
                 if hasattr(page, "strokeFinished"):
                     page.strokeFinished.connect(self._metrics.record_stroke_finish)
+                if hasattr(page, "strokeDataCollected"):
+                    page.strokeDataCollected.connect(self._metrics.record_stroke_data)
                 if hasattr(page, "undoClicked"):
                     page.undoClicked.connect(self._metrics.record_undo)
                 if hasattr(page, "redoClicked"):
@@ -132,7 +134,8 @@ class FlowController(QObject):
                     from pages.RememberFigurePage import RememberFigurePage
                     if isinstance(page, RememberFigurePage):
                         display_info = page.get_display_info()
-                        self._metrics.save_display_info(display_info)
+                        bg_path = getattr(page, "bg_path", None)
+                        self._metrics.save_display_info(display_info, bg_path)
                     page.finished.connect(self._advance)
             except Exception:
                 print("Coś poszło nie tak na finished!")

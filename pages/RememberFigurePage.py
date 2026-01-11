@@ -18,6 +18,7 @@ class RememberFigurePage(QWidget):
         super().__init__(parent)
         self.setWindowTitle("Remember Figure Page")
 
+        self.bg_path = bg_path  # Zapisujemy ścieżkę
         self.background = QPixmap(bg_path)
         print(f'height pixmap: {self.background.height()}')
         print(f'width pixmap: {self.background.width()}')

@@ -108,6 +108,7 @@ TEST_SEQUENCE = [
 
 def main():
     app = QApplication(sys.argv)
+    app.setStyleSheet("background-color: white;")
 
     QDir.addSearchPath("assets", os.fspath(CURRENT_DIRECTORY / "assets"))
 

@@ -13,6 +13,7 @@ class DrawingPage(QWidget):
     firstStroke = pyqtSignal()
     strokeStarted = pyqtSignal()
     strokeFinished = pyqtSignal()
+    strokeDataCollected = pyqtSignal(dict)
     undoClicked = pyqtSignal()
     redoClicked = pyqtSignal()
 
@@ -34,6 +35,7 @@ class DrawingPage(QWidget):
         self.april_tags.canvas.firstStroke.connect(self.firstStroke.emit)
         self.april_tags.canvas.strokeStarted.connect(self.strokeStarted.emit)
         self.april_tags.canvas.strokeFinished.connect(self.strokeFinished.emit)
+        self.april_tags.canvas.strokeDataCollected.connect(self.strokeDataCollected.emit)
         self.april_tags.canvas.undoClicked.connect(self.undoClicked.emit)
         self.april_tags.canvas.redoClicked.connect(self.redoClicked.emit)
         main_layout.addWidget(self.april_tags)
