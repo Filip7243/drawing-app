@@ -1,4 +1,5 @@
 from PyQt6 import QtWidgets, QtGui, QtCore
+from time import perf_counter
 
 
 class DrawingCanvas(QtWidgets.QWidget):
@@ -119,7 +120,8 @@ class DrawingCanvas(QtWidgets.QWidget):
             self.strokeStarted.emit()
             pos = self._mapEventToImage(event.position())
             self.last_point = pos
-            self._current_stroke_points = [pos]
+            # Zapisujemy (timestamp, x, y)
+            self._current_stroke_points = [(perf_counter(), pos.x(), pos.y())]
             self._current_stroke_overdraw_count = 0
             self._current_stroke_total_count = 0
             self._current_stroke_overdraw_cells = {}
@@ -142,7 +144,7 @@ class DrawingCanvas(QtWidgets.QWidget):
                 self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
             
             self._current_stroke_total_count += 1
-            self._current_stroke_points.append(current_point)
+            self._current_stroke_points.append((perf_counter(), current_point.x(), current_point.y()))
 
             painter = QtGui.QPainter(self.image)
             pen = QtGui.QPen(self.pen_color, self.pen_width,
@@ -170,8 +172,9 @@ class DrawingCanvas(QtWidgets.QWidget):
         # Obliczanie długości ścieżki i zmian kierunku
         path_length = 0
         direction_changes = 0
-        min_x = max_x = self._current_stroke_points[0].x()
-        min_y = max_y = self._current_stroke_points[0].y()
+        t0, x0, y0 = self._current_stroke_points[0]
+        min_x = max_x = x0
+        min_y = max_y = y0
 
         import math
 
@@ -180,11 +183,11 @@ class DrawingCanvas(QtWidgets.QWidget):
         ANGLE_THRESHOLD = 45 
 
         for i in range(1, len(self._current_stroke_points)):
-            p1 = self._current_stroke_points[i-1]
-            p2 = self._current_stroke_points[i]
+            t1, x1, y1 = self._current_stroke_points[i-1]
+            t2, x2, y2 = self._current_stroke_points[i]
             
-            dx = p2.x() - p1.x()
-            dy = p2.y() - p1.y()
+            dx = x2 - x1
+            dy = y2 - y1
             
             dist = (dx**2 + dy**2)**0.5
             path_length += dist
@@ -200,10 +203,10 @@ class DrawingCanvas(QtWidgets.QWidget):
                         direction_changes += 1
                 last_angle = current_angle
 
-            min_x = min(min_x, p2.x())
-            max_x = max(max_x, p2.x())
-            min_y = min(min_y, p2.y())
-            max_y = max(max_y, p2.y())
+            min_x = min(min_x, x2)
+            max_x = max(max_x, x2)
+            min_y = min(min_y, y2)
+            max_y = max(max_y, y2)
 
         bbox_area = (max_x - min_x) * (max_y - min_y)
 
@@ -236,7 +239,8 @@ class DrawingCanvas(QtWidgets.QWidget):
                 self.firstStroke.emit()
             self.strokeStarted.emit()
             self.last_point = mapped_pos
-            self._current_stroke_points = [mapped_pos]
+            # Zapisujemy (timestamp, x, y)
+            self._current_stroke_points = [(perf_counter(), mapped_pos.x(), mapped_pos.y())]
             self._current_stroke_overdraw_count = 0
             self._current_stroke_total_count = 0
             self._current_stroke_overdraw_cells = {}
@@ -253,7 +257,7 @@ class DrawingCanvas(QtWidgets.QWidget):
                 self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
             
             self._current_stroke_total_count += 1
-            self._current_stroke_points.append(mapped_pos)
+            self._current_stroke_points.append((perf_counter(), mapped_pos.x(), mapped_pos.y()))
 
             painter = QtGui.QPainter(self.image)
             pen = QtGui.QPen(self.pen_color, self.pen_width,

@@ -51,6 +51,7 @@ class DrawingRecord:
     display_info: Optional[dict] = field(default=None)
     overlay_filename: Optional[str] = None # NOWE
     heatmap_filename: Optional[str] = None # NOWE
+    strokes_data: list[list[tuple[float, int, int]]] = field(default_factory=list) # NOWE: surowe dane kresek
 
     @property
     def duration_s(self) -> float:
@@ -119,6 +120,7 @@ class TestMetrics:
         self._test_meta_data: TestMetaData | None = None
         self._session_dir: Path | None = None
         self._test_start: float | None = None
+        self._test_start_unix: float | None = None  # NOWE: Czas systemowy rozpoczęcia testu
         self._test_end: float | None = None
         self._current_drawing_start: float | None = None
         self._current_first_stroke: float | None = None
@@ -131,6 +133,7 @@ class TestMetrics:
         self._current_revisits_count: int = 0
         self._current_shading_detected: bool = False
         self._current_direction_changes_count: int = 0
+        self._current_strokes: list[list[tuple[float, int, int]]] = [] # NOWE
         self._visited_grid_cells: set[tuple[int, int]] = set()
         self._grid_visit_counts: dict[tuple[int, int], int] = {}  # NOWE: Licznik odwiedzin komórek siatki
         self._grid_overdraw_counts: dict[tuple[int, int], int] = {} # NOWE: Licznik nadrysowanych pikseli na komórkę
@@ -157,6 +160,7 @@ class TestMetrics:
     def start_test(self):
         _ = self.session_dir  # Tworzy katalog sesji, jeśli nie istnieje
         self._test_start = perf_counter()
+        self._test_start_unix = datetime.now().timestamp()
         self._records.clear()  # Usuwamy poprzednie rekordy (jeśli istnieją)
         self._drawing_counter = 0
         self._current_display_info = None
@@ -187,6 +191,8 @@ class TestMetrics:
         """
         self._test_end = perf_counter()
         summary = {
+            "test_start_unix": self._test_start_unix,
+            "test_start_perf": self._test_start,
             "total_duration": (self._test_end - self._test_start) if (self._test_end and self._test_start) else None,
             "drawings": [
                 {
@@ -230,6 +236,7 @@ class TestMetrics:
         self._current_revisits_count = 0
         self._current_shading_detected = False
         self._current_direction_changes_count = 0
+        self._current_strokes = []
         self._visited_grid_cells = set()
         self._grid_visit_counts = {}
         self._grid_overdraw_counts = {}
@@ -270,6 +277,10 @@ class TestMetrics:
         self._current_total_drawn_pixels += stroke_data.get('total_pixels', 0)
         self._current_direction_changes_count += stroke_data.get('direction_changes', 0)
 
+        # NOWE: Zapisujemy surowe dane punktów kreski
+        points = stroke_data.get('points', [])
+        self._current_strokes.append(points)
+
         # Re-tracing / Shading detection (Scrubbing)
         path_length = stroke_data.get('path_length', 0)
         bbox_area = stroke_data.get('bounding_box_area', 1)
@@ -280,10 +291,9 @@ class TestMetrics:
             print("Wykryto cieniowanie/szorowanie!")
 
         # Revisit detection
-        points = stroke_data.get('points', [])
         stroke_visited_cells = set()
-        for p in points:
-            cell = (p.x() // self._grid_size, p.y() // self._grid_size)
+        for t, x, y in points:
+            cell = (x // self._grid_size, y // self._grid_size)
             stroke_visited_cells.add(cell)
 
         # Sprawdzamy czy ta kreska wchodzi w komórki odwiedzone przez POPRZEDNIE kreski
@@ -364,7 +374,8 @@ class TestMetrics:
             direction_changes_count=self._current_direction_changes_count,
             display_info=self._current_display_info,
             overlay_filename=overlay_filename,
-            heatmap_filename=heatmap_filename
+            heatmap_filename=heatmap_filename,
+            strokes_data=list(self._current_strokes)
         )
         self._records.append(new_record)
         image_record = Image(self._test_meta_data.examine_id, image_to_bytes(image),
@@ -381,6 +392,7 @@ class TestMetrics:
         self._current_revisits_count = 0
         self._current_shading_detected = False
         self._current_direction_changes_count = 0
+        self._current_strokes = []
         self._visited_grid_cells = set()
         self._grid_visit_counts = {}
         self._grid_overdraw_counts = {}
