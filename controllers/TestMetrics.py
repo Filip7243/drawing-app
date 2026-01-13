@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import time
+import traceback
 from dataclasses import dataclass, asdict, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -25,9 +27,12 @@ class DrawingRecord:
     Attributes:
         index (int): Identyfikator rysunku.
         filename (str): Nazwa pliku z rysunkiem (np. `id_pacjenta-id_badania-index.png`).
-        started_at (float): Czas (timestamp) pojawienia się planszy do rysowania.
-        first_stroke_at (float): Czas (timestamp) pierwszego dotknięcia płótna.
-        finished_at (float): Czas (timestamp) kliknięcia przycisku "Dalej", gdy badany uznał, że zakończył rysunek.
+        started_at (float): Czas pojawienia się planszy do rysowania.
+        started_at_ts (float): Czas (timestamp) pojawienia się planszy do rysowania.
+        first_stroke_at (float): Czas pierwszego dotknięcia płótna.
+        first_stroke_at_ts (float): Czas (timestamp) pierwszego dotknięcia płótna.
+        finished_at (float): Czas kliknięcia przycisku "Dalej", gdy badany uznał, że zakończył rysunek.
+        finished_at_ts (float): Czas (timestamp) kliknięcia przycisku "Dalej", gdy badany uznał, że zakończył rysunek.
         interruptions_count (int): Ilość oderwań rysika od płótna.
         interruption_durations (list[float]): Lista czasów trwania poszczególnych przerw (w sekundach).
         overdrawing_score (float): Stosunek pikseli nadrysowanych do wszystkich narysowanych pikseli.
@@ -44,8 +49,11 @@ class DrawingRecord:
     patient_id: int
     examine_id: int
     started_at: float
+    started_at_ts: float
     first_stroke_at: Optional[float]
+    first_stroke_at_ts: Optional[float]
     finished_at: float
+    finished_at_ts: float
     interruptions_count: int = 0
     interruption_durations: list[float] = field(default_factory=list)
     undo_count: int = 0
@@ -120,10 +128,12 @@ class TestMetrics:
         self._test_meta_data: TestMetaData | None = None
         self._session_dir: Path | None = None
         self._test_start: float | None = None
-        self._test_start_unix: float | None = None  # NOWE: Czas systemowy rozpoczęcia testu
+        self._test_start_unix: float | None = None
         self._test_end: float | None = None
         self._current_drawing_start: float | None = None
+        self._current_drawing_start_ts: float | None = None
         self._current_first_stroke: float | None = None
+        self._current_first_stroke_ts: float | None = None
         self._current_interruptions_count: int = 0
         self._current_interruption_durations: list[float] = []
         self._current_undo_count: int = 0
@@ -160,7 +170,7 @@ class TestMetrics:
     def start_test(self):
         _ = self.session_dir  # Tworzy katalog sesji, jeśli nie istnieje
         self._test_start = perf_counter()
-        self._test_start_unix = datetime.now().timestamp()
+        self._test_start_unix = time.time()
         self._records.clear()  # Usuwamy poprzednie rekordy (jeśli istnieją)
         self._drawing_counter = 0
         self._current_display_info = None
@@ -171,30 +181,40 @@ class TestMetrics:
         Dane zapisane w pliku `summary.json` mają następującą strukturę:
 
         :returns:
-            Dict [str., Any]: Słownik zawierający podsumowanie testu, w tym całkowity czas trwania (`total_duration`)
+            Dict [str., Any]: Słownik zawierający podsumowanie testu, w tym całkowity czas trwania (`total_duration_s`)
             oraz listę rysunków (`drawings`) z czasami rysowania.
         """
-        self._test_end = perf_counter()
-        summary = {
-            "test_start_unix": self._test_start_unix,
-            "test_start_perf": self._test_start,
-            "total_duration_s": (self._test_end - self._test_start) if (self._test_end and self._test_start) else None,
-            "drawings": [
-                {
-                    **asdict(record),  # zmieniamy każdy rekord (rysunek) na słownik
-                    "duration_s": record.duration_s,
-                    "actual_drawing_duration_s": record.actual_drawing_duration_s,
-                    "avg_interruption_duration_s": record.avg_interruption_duration_s,
-                } for record in self._records
-            ]
-        }
-        self.examinationService.update_examination_times(self._test_meta_data.examine_id,
-                                                         whole_time=timedelta(seconds=summary["total_duration"]),
-                                                         avg_time=timedelta(
-                                                             seconds=summary["total_duration"] / len(self._records)))
-        # zapisujemy do JSON
-        (self.session_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-        return summary
+        try:
+            self._test_end = perf_counter()
+            self._test_end_ts = time.time()
+            total_duration_s = (self._test_end - self._test_start) if (self._test_end and self._test_start) else 0.0
+            summary = {
+                "test_start_unix": self._test_start_unix,
+                "test_start_perf": self._test_start,
+                "total_duration_s": total_duration_s,
+                "test_end_ts": self._test_end_ts,
+                "drawings": [
+                    {
+                        **asdict(record),  # zmieniamy każdy rekord (rysunek) na słownik
+                        "duration_s": record.duration_s,
+                        "actual_drawing_duration_s": record.actual_drawing_duration_s,
+                        "avg_interruption_duration_s": record.avg_interruption_duration_s,
+                    } for record in self._records
+                ]
+            }
+            num_records = len(self._records)
+            avg_time_s = (total_duration_s / num_records) if num_records > 0 else 0.0
+
+            self.examinationService.update_examination_times(self._test_meta_data.examine_id,
+                                                             whole_time=timedelta(seconds=total_duration_s),
+                                                             avg_time=timedelta(seconds=avg_time_s))
+            # zapisujemy do JSON
+            (self.session_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+            return summary
+        except Exception as e:
+            print(f"Error in end_test: {e}")
+            traceback.print_exc()
+            raise e
 
     def save_display_info(self, display_info: dict | None, reference_path: str | None = None):
         """
@@ -210,7 +230,9 @@ class TestMetrics:
 
     def start_drawing(self):
         self._current_drawing_start = perf_counter()
+        self._current_drawing_start_ts = time.time()
         self._current_first_stroke = None
+        self._current_first_stroke_ts = None
         self._current_interruptions_count = 0
         self._current_interruption_durations = []
         self._current_undo_count = 0
@@ -233,6 +255,7 @@ class TestMetrics:
         """
         if self._current_first_stroke is None:
             self._current_first_stroke = perf_counter()
+            self._current_first_stroke_ts = time.time()
             print(f"Pierwsze dotknięcie płótna: {self._current_first_stroke}")
 
     def record_stroke_start(self):
@@ -307,12 +330,17 @@ class TestMetrics:
         # jeśli droga bardzo długa, a obszar mały to znaczy, że jest cieniowanie/szorowanie ("malowanie w miejscu")
         # SCRUBBING_THRESHOLD do dostosowania
         if bbox_area > 0 and (path_length * path_length) / bbox_area > SCRUBBING_THRESHOLD:
+            print(f'path_len:{path_length}')
+            print(f'bbox_area:{bbox_area}')
+            print(f'SCRUBBING_THRESHOLD:{SCRUBBING_THRESHOLD}')
+            area = (path_length * path_length) / bbox_area
+            print(f'(path_length * path_length) / bbox_area:{area}')
             self._current_shading_detected = True
             print("Wykryto cieniowanie/szorowanie!")
 
         # Detekcja ponownego odwiedzania obszarów
         stroke_visited_cells = set()
-        for t, x, y in points:
+        for ts, t, x, y in points:
             cell = (x // self._grid_size, y // self._grid_size)
             stroke_visited_cells.add(cell)
 
@@ -345,8 +373,10 @@ class TestMetrics:
         """
         if self._current_drawing_start is None:
             self._current_drawing_start = perf_counter()
+            self._current_drawing_start_ts = time.time()
 
         finished_at = perf_counter()
+        finished_at_ts = time.time()
         index = self._drawing_counter
         ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
@@ -384,8 +414,11 @@ class TestMetrics:
             self._test_meta_data.patient_id,
             self._test_meta_data.examine_id,
             self._current_drawing_start,
+            self._current_drawing_start_ts,
             self._current_first_stroke,
+            self._current_first_stroke_ts,
             finished_at,
+            finished_at_ts,
             interruptions_count=self._current_interruptions_count,
             interruption_durations=list(self._current_interruption_durations),
             undo_count=self._current_undo_count,
@@ -408,7 +441,9 @@ class TestMetrics:
 
         # Czyszczenie stanu po zakończeniu rysowania
         self._current_drawing_start = None
+        self._current_drawing_start_ts = None
         self._current_first_stroke = None
+        self._current_first_stroke_ts = None
         self._current_interruptions_count = 0
         self._current_interruption_durations = []
         self._current_undo_count = 0

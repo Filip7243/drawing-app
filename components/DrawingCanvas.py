@@ -1,3 +1,5 @@
+import time
+
 from PyQt6 import QtWidgets, QtGui, QtCore
 from time import perf_counter
 
@@ -129,8 +131,8 @@ class DrawingCanvas(QtWidgets.QWidget):
             pos = self._mapEventToImage(event.position())
             self.last_point = pos
 
-            # Zapisujemy pixel (timestamp, x, y) - przypadek, gdy zostanie narysowana kropka
-            self._current_stroke_points = [(perf_counter(), pos.x(), pos.y())]
+            # Zapisujemy pixel (timestamp, perf, x, y) - przypadek, gdy zostanie narysowana kropka
+            self._current_stroke_points = [(time.time(), perf_counter(), pos.x(), pos.y())]
             self._current_stroke_overdraw_count = 0
             self._current_stroke_total_count = 0
             self._current_stroke_overdraw_cells = {}
@@ -151,7 +153,7 @@ class DrawingCanvas(QtWidgets.QWidget):
                 self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
 
             self._current_stroke_total_count += 1
-            self._current_stroke_points.append((perf_counter(), current_point.x(), current_point.y()))
+            self._current_stroke_points.append((time.time(), perf_counter(), current_point.x(), current_point.y()))
 
             painter = QtGui.QPainter(self.image)
             pen = QtGui.QPen(self.pen_color, self.pen_width,
@@ -182,7 +184,7 @@ class DrawingCanvas(QtWidgets.QWidget):
         # Obliczanie długości ścieżki i zmian kierunku
         path_length = 0
         direction_changes = 0
-        t0, x0, y0 = self._current_stroke_points[0]
+        ts0, t0, x0, y0 = self._current_stroke_points[0]
         min_x = max_x = x0
         min_y = max_y = y0
 
@@ -193,8 +195,8 @@ class DrawingCanvas(QtWidgets.QWidget):
         ANGLE_THRESHOLD = 45
 
         for i in range(1, len(self._current_stroke_points)):
-            t1, x1, y1 = self._current_stroke_points[i - 1]
-            t2, x2, y2 = self._current_stroke_points[i]
+            ts1, t1, x1, y1 = self._current_stroke_points[i - 1]
+            ts2, t2, x2, y2 = self._current_stroke_points[i]
 
             # Tworzymy wektor
             dx = x2 - x1  # Przesunięcie w osi X
@@ -254,8 +256,8 @@ class DrawingCanvas(QtWidgets.QWidget):
                 self.firstStroke.emit()
             self.strokeStarted.emit()
             self.last_point = mapped_pos
-            # Zapisujemy pixel (timestamp, x, y) - przypadek, gdy zostanie narysowana kropka
-            self._current_stroke_points = [(perf_counter(), mapped_pos.x(), mapped_pos.y())]
+            # Zapisujemy pixel (timestamp, perf, x, y) - przypadek, gdy zostanie narysowana kropka
+            self._current_stroke_points = [(time.time(), perf_counter(), mapped_pos.x(), mapped_pos.y())]
             self._current_stroke_overdraw_count = 0
             self._current_stroke_total_count = 0
             self._current_stroke_overdraw_cells = {}
@@ -272,7 +274,7 @@ class DrawingCanvas(QtWidgets.QWidget):
                 self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
 
             self._current_stroke_total_count += 1
-            self._current_stroke_points.append((perf_counter(), mapped_pos.x(), mapped_pos.y()))
+            self._current_stroke_points.append((time.time(), perf_counter(), mapped_pos.x(), mapped_pos.y()))
 
             painter = QtGui.QPainter(self.image)
             pen = QtGui.QPen(self.pen_color, self.pen_width,

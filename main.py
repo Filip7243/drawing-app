@@ -4,6 +4,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import QDir
 from PyQt6.QtWidgets import QApplication
+from mypyc.crash import catch_errors
 
 from controllers.FlowController import FlowController
 from controllers.TestMetrics import TestMetrics
