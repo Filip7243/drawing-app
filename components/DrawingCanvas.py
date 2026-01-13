@@ -15,7 +15,7 @@ class DrawingCanvas(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StaticContents)
         self.setMouseTracking(True)
 
-        self.image = None  # utworzymy ją dopiero przy pierwszym resizeEvent
+        self.image = None
         self.last_point = None
         self.pen_color = QtGui.QColor("black")
         self.pen_width = 2
@@ -24,11 +24,10 @@ class DrawingCanvas(QtWidgets.QWidget):
         self._redo_stack = []
         self._max_undo_steps = 50
 
-        # Metryki bieżącej kreski
         self._current_stroke_points = []
         self._current_stroke_overdraw_count = 0
         self._current_stroke_total_count = 0
-        self._current_stroke_overdraw_cells = {} # NOWE: Licznik nadrysowanych pikseli na komórkę
+        self._current_stroke_overdraw_cells = {}
         self._grid_size = 40
 
     def _save_state(self):
@@ -46,7 +45,7 @@ class DrawingCanvas(QtWidgets.QWidget):
 
         if self.image is not None:
             self._redo_stack.append(self.image.copy())
-        
+
         self.image = self._undo_stack.pop()
         self.undoClicked.emit()
         self.update()
@@ -58,7 +57,7 @@ class DrawingCanvas(QtWidgets.QWidget):
 
         if self.image is not None:
             self._undo_stack.append(self.image.copy())
-        
+
         self.image = self._redo_stack.pop()
         self.redoClicked.emit()
         self.update()
@@ -112,37 +111,45 @@ class DrawingCanvas(QtWidgets.QWidget):
         return QtCore.QPoint(x, y)
 
     def mousePressEvent(self, event: QtGui.QMouseEvent):
+        """
+         Za każdym razem, gdy rysujemy, zapisujemy stan obrazka, to co było aktualnie namalowane na stos undo,
+         współrzędne rysowanej linii wraz z timestamp, kiedy zostały namalowane,
+        """
         if event.button() == QtCore.Qt.MouseButton.LeftButton and self.image is not None:
             self._save_state()
+
+            # Emitujemy firstStroke, żeby złapać moment pierwszego dotknięcia ekranu po wyświetleniu canvas do rysowania
             if not self._first_stroke_recorded:
                 self._first_stroke_recorded = True
                 self.firstStroke.emit()
+
+            # Emitujemy event, który przechwytujemy w FlowController.py
             self.strokeStarted.emit()
+
             pos = self._mapEventToImage(event.position())
             self.last_point = pos
-            # Zapisujemy (timestamp, x, y)
+
+            # Zapisujemy pixel (timestamp, x, y) - przypadek, gdy zostanie narysowana kropka
             self._current_stroke_points = [(perf_counter(), pos.x(), pos.y())]
             self._current_stroke_overdraw_count = 0
             self._current_stroke_total_count = 0
             self._current_stroke_overdraw_cells = {}
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
-        if (
-            event.buttons() & QtCore.Qt.MouseButton.LeftButton
-            and self.last_point is not None
-            and self.image is not None
-        ):
+        if (event.buttons() & QtCore.Qt.MouseButton.LeftButton
+                and self.last_point is not None
+                and self.image is not None):
             current_point = self._mapEventToImage(event.position())
-            
-            # Detekcja nadrysowywania
+
+            # Detekcja nadrysowania ("rysowania w miejscu")
             pixel_color = QtGui.QColor(self.image.pixel(current_point))
             if pixel_color.rgb() != QtGui.QColor("#FFFFFF").rgb():
                 self._current_stroke_overdraw_count += 1
-                
+
                 # Zapisywanie nadrysowania w komórce
                 cx, cy = current_point.x() // self._grid_size, current_point.y() // self._grid_size
                 self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
-            
+
             self._current_stroke_total_count += 1
             self._current_stroke_points.append((perf_counter(), current_point.x(), current_point.y()))
 
@@ -159,8 +166,11 @@ class DrawingCanvas(QtWidgets.QWidget):
             self.update()
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
+        """Wywoływane po zakończeniu rysowania linii"""
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self._emit_stroke_data()
+
+            # Event łapany w FlowController.py
             self.strokeFinished.emit()
             self.last_point = None
 
@@ -179,20 +189,23 @@ class DrawingCanvas(QtWidgets.QWidget):
         import math
 
         last_angle = None
-        # Próg zmiany kierunku (w stopniach) - np. 45 stopni
-        ANGLE_THRESHOLD = 45 
+        # Próg zmiany kierunku (w stopniach) - np. 45 stopni. Zgodnie z wytycznymi Pani psycholog.
+        ANGLE_THRESHOLD = 45
 
         for i in range(1, len(self._current_stroke_points)):
-            t1, x1, y1 = self._current_stroke_points[i-1]
+            t1, x1, y1 = self._current_stroke_points[i - 1]
             t2, x2, y2 = self._current_stroke_points[i]
-            
-            dx = x2 - x1
-            dy = y2 - y1
-            
-            dist = (dx**2 + dy**2)**0.5
+
+            # Tworzymy wektor
+            dx = x2 - x1  # Przesunięcie w osi X
+            dy = y2 - y1  # Przesunięcie w osi Y
+
+            # Wyliczamy odległość pomiędzy punktami
+            dist = (dx ** 2 + dy ** 2) ** 0.5
             path_length += dist
-            
-            if dist > 2: # Ignorujemy bardzo małe ruchy (szum)
+
+            # Wyliczamy kąt pomiędzy wektorami [-pi, pi] aby wykryć nagłe zmiany kirunku podczas rysowania
+            if dist > 2:  # Ignorujemy bardzo małe ruchy (może to być szum)
                 current_angle = math.atan2(dy, dx)
                 if last_angle is not None:
                     diff = abs(math.degrees(current_angle - last_angle))
@@ -208,6 +221,7 @@ class DrawingCanvas(QtWidgets.QWidget):
             min_y = min(min_y, y2)
             max_y = max(max_y, y2)
 
+        # Pole powierzchni rysunku (nie mylić z polem powierzchni do rysowania).
         bbox_area = (max_x - min_x) * (max_y - min_y)
 
         data = {
@@ -219,6 +233,7 @@ class DrawingCanvas(QtWidgets.QWidget):
             'direction_changes': direction_changes,
             'overdraw_cells': self._current_stroke_overdraw_cells
         }
+        # Event przechwytywany w FlowController.py
         self.strokeDataCollected.emit(data)
         self._current_stroke_points = []
 
@@ -239,7 +254,7 @@ class DrawingCanvas(QtWidgets.QWidget):
                 self.firstStroke.emit()
             self.strokeStarted.emit()
             self.last_point = mapped_pos
-            # Zapisujemy (timestamp, x, y)
+            # Zapisujemy pixel (timestamp, x, y) - przypadek, gdy zostanie narysowana kropka
             self._current_stroke_points = [(perf_counter(), mapped_pos.x(), mapped_pos.y())]
             self._current_stroke_overdraw_count = 0
             self._current_stroke_total_count = 0
@@ -247,15 +262,15 @@ class DrawingCanvas(QtWidgets.QWidget):
             event.accept()
 
         elif event.type() == QtCore.QEvent.Type.TabletMove and self.last_point is not None:
-            # Detekcja nadrysowywania
+            # Detekcja nadrysowania ("rysowania w miejscu")
             pixel_color = QtGui.QColor(self.image.pixel(mapped_pos))
             if pixel_color.rgb() != QtGui.QColor("#FFFFFF").rgb():
                 self._current_stroke_overdraw_count += 1
-                
+
                 # Zapisywanie nadrysowania w komórce
                 cx, cy = mapped_pos.x() // self._grid_size, mapped_pos.y() // self._grid_size
                 self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
-            
+
             self._current_stroke_total_count += 1
             self._current_stroke_points.append((perf_counter(), mapped_pos.x(), mapped_pos.y()))
 
@@ -274,6 +289,8 @@ class DrawingCanvas(QtWidgets.QWidget):
 
         elif event.type() == QtCore.QEvent.Type.TabletRelease:
             self._emit_stroke_data()
+
+            # Event łapany w FlowController.py
             self.strokeFinished.emit()
             self.last_point = None
             event.accept()

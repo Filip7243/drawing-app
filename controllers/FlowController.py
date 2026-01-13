@@ -14,72 +14,101 @@ class FlowController(QObject):
         self._current: QWidget | None = None
         self._loop: bool = False
         self._on_complete: Callable[[], None] | None = None
-        # Persistent container to avoid desktop flicker between steps
         self._stack = QStackedWidget()
         self._metrics: TestMetrics | None = None
         self._test_mode: bool = False  # Sprawdza, czy jesteśmy w teście (w samouczku nie pobieramy danych)
 
     def set_metrics(self, metrics: TestMetrics | None):
+        """
+         Setter dla klasy metryk, która zbiera dane z rysowania i wylicza statystyki.
+        """
         self._metrics = metrics
 
     def set_test_mode(self, enabled: bool):
+        """
+         Setter dla flagi test_mode, która włącza lub wyłącza tryb testowy. Tryb testowy determinuje czy
+         dane są zbierane, czy to tylko samouczek.
+        """
         self._test_mode = enabled
 
     def set_sequence(self, factories: list[Callable[[], QWidget]]):
-        print(f"USTAWIWAM FACTORIES: {factories}")
+        """
+         Pozwala ustawić sekwencję widoków, które będą wyświetlane w trakcie testów. Tutaj ustawaimy listę
+         z planszami i stronami do rysowania.
+        """
         self._factories = factories
         self._idx = -1
 
     def set_loop(self, loop: bool):
+        """
+         Ustawia flagę loop, która pozwala wrócić na początek sekwencji samouczka, jeśli pacjent zechce
+        """
         self._loop = loop
 
     def set_on_complete(self, callback: Callable[[], None] | None):
+        """
+         Ustawia callback, funkcja, która zostanie wywołana po zakończeniu całego testu, po to, aby zapisać dane.
+        """
         self._on_complete = callback
 
     def start(self):
-        # Ensure the very first page is created BEFORE showing the window,
-        # so the stack maximizes with correct initial content size
+        """
+         Funkcja do wystartowania testu.
+        """
         if not self._stack.isVisible():
             if self._idx == -1:
-                self._advance()  # prepares the first page in the stack
+                self._advance()
             self._stack.showMaximized()
         else:
-            # When the stack is already visible (e.g., switching sequences), just advance
             self._advance()
 
     def _restart_sequence(self):
+        """
+         Funkcja do restartu sekwencji samouczka.
+        """
         self._idx = -1
         self._advance()
 
     def _advance(self):
+        """
+         Główna funkcja kontrolera, punkt centralny aplikacji.
+         Przechwytuje wszystkie eventy wyemitowane podczas rysowania, umożliwia przejście do następnego widoku,
+         zarządza stosem sekwencji samouczka i głównego testu.
+        """
         prev = self._current
 
         self._idx += 1
+        # Jeśli jesteśmy w ostatnim widoku sekwencji wywołujemy funkcję on_complete
         if self._idx >= len(self._factories):
-            # Do not tear down the current widget yet; let on_complete or loop decide next
             if self._on_complete is not None:
                 try:
                     self._on_complete()
                 finally:
                     return
+
+            # Jeśli jesteśmy w trybie loop, restartujemy sekwencję
             if self._loop and len(self._factories) > 0:
                 self._restart_sequence()
             return
 
-        # Create next page and insert into the persistent stack
+        # Ustawienie aktualnej strony
         page = self._factories[self._idx]()
         page.setParent(self._stack)
         self._stack.addWidget(page)
         self._stack.setCurrentWidget(page)
         self._current = page
 
-        # Wire signals for navigation
+        # Podpięcie eventu dla audio, kliknięcie przycisku dalej
         if hasattr(page, "nextRequested"):
             try:
                 page.nextRequested.connect(self._advance)
-            except Exception:
+            except Exception as e:
+                print(f"Coś poszło nie tak przy nextRequested: {e}")
                 pass
 
+        # Podpięcie eventu dla audio, kliknięcie przycisku powtórz,
+        # jeśli jesteśmy, na ostatniej stronie to wracamy do początku sekwencji,
+        # jeśli nie to odpalamy stronę, na której jesteśmy jeszcze raz.
         if hasattr(page, "repeatRequested"):
             try:
                 is_last = (self._idx == len(self._factories) - 1)
@@ -89,14 +118,17 @@ class FlowController(QObject):
                     start = getattr(page, "start", None)
                     if callable(start):
                         page.repeatRequested.connect(start)
-            except Exception:
+            except Exception as e:
+                print(f"Coś poszło nie tak przy repeatRequested: {e}")
                 pass
 
-        # Start or show the page (avoid showMaximized when embedded)
+        # Jeśli widok ma funkcję start, to wywołuje ją, taka funkcja służy do inicjalizacji widoku
         start = getattr(page, "start", None)
         if callable(start):
             start()
 
+        # Jeśli jesteśmy w trybie testu to łapiemy wszystkie eventy emitowane w DrawingPage.py i podpinamy pod nie
+        # odpowiednie funkcje z TestMetrics.py
         if self._test_mode and getattr(page, "is_drawing_page", False):
             if self._metrics is not None:
                 self._metrics.start_drawing()
@@ -113,11 +145,15 @@ class FlowController(QObject):
                 if hasattr(page, "redoClicked"):
                     page.redoClicked.connect(self._metrics.record_redo)
 
+        # Jeśli funkcja ma atrybut finished, to znaczy, że jest to widok rysowania albo zapamiętywania
         if hasattr(page, "finished"):
             try:
                 if self._test_mode and getattr(page, "is_drawing_page", False) and self._metrics is not None:
+                    # Handler dla eventu finished emitowanego w DrawingPage.py
                     def _on_finished_drawing(current_page=page):
                         try:
+                            # Pobieramy exporter do zdjęcia i wywołujemy finish_drawing, która zapisuje rysunek,
+                            # a także zapisuje metryki rysunku
                             exporter = getattr(current_page, "exporter", None)
                             if callable(exporter):
                                 img = exporter()
@@ -132,20 +168,23 @@ class FlowController(QObject):
                     page.finished.connect(_on_finished_drawing)
                 else:
                     from pages.RememberFigurePage import RememberFigurePage
+                    # Zapisywanie danych o wielkości wyświetlanej planszy do zapamiętywania,
+                    # może się przydać przy mapowaniu współrzędnych z eye-trackera
                     if isinstance(page, RememberFigurePage):
                         display_info = page.get_display_info()
                         bg_path = getattr(page, "bg_path", None)
                         self._metrics.save_display_info(display_info, bg_path)
                     page.finished.connect(self._advance)
-            except Exception:
-                print("Coś poszło nie tak na finished!")
+            except Exception as e:
+                print(f"Coś poszło nie tak na finished! {e}")
                 pass
 
-        # Now safely remove and delete the previous page to avoid flicker
+        # Bezpieczne usuwanie poprzedniego widoku po przejściu do kolejnego, tak żeby przejście było płynne.
         if prev is not None:
             try:
                 self._stack.removeWidget(prev)
-            except Exception:
+            except Exception as e:
+                print(f'Błąd podczas usuwania poprzedniego widoku: {e}')
                 pass
             prev.deleteLater()
 

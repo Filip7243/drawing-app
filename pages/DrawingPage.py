@@ -4,8 +4,8 @@ from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 
 from components.AprilTagsComponent import AprilTagsComponent
-from components.StyledButton import StyledButton
 from components.IconButton import IconButton
+from components.StyledButton import StyledButton
 
 
 class DrawingPage(QWidget):
@@ -17,7 +17,7 @@ class DrawingPage(QWidget):
     undoClicked = pyqtSignal()
     redoClicked = pyqtSignal()
 
-    is_drawing_page = True  # Flaga dla FlowController żeby widział że tutaj może zbierać dane
+    is_drawing_page = True  # Flaga dla FlowController, żeby widział, że tutaj może zbierać dane
 
     def __init__(self, parent=None, audio="05_odwzoruj_rysunek.wav", is_tutorial=True):
         super().__init__(parent)
@@ -90,7 +90,9 @@ class DrawingPage(QWidget):
             self.player.play()
 
     def export_as_image(self) -> QImage:
-        """Zwraca obraz QImage przedstawiający sam obszar rysowania.
+        """
+            Zwraca obraz QImage przedstawiający sam obszar rysowania.
+            Exporter używany w FlowController.py, po każdym zakończeniu rysowania rysunku zapisuje go w session_dir.
         """
         image = self.april_tags.canvas.export_as_image()
         print(image.height())
