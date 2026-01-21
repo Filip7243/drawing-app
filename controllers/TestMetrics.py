@@ -69,6 +69,7 @@ class DrawingRecord:
     avg_velocity: float = 0.0
     max_velocity: float = 0.0
     velocity_ratio: float = 0.0
+    velocities: list[float] = field(default_factory=list)
     velocity_profile_filename: Optional[str] = None
     display_info: Optional[dict] = field(default=None)
     overlay_filename: Optional[str] = None
@@ -503,6 +504,7 @@ class TestMetrics:
             avg_velocity=avg_vel,
             max_velocity=max_vel,
             velocity_ratio=vel_ratio,
+            velocities=list(self._current_velocities),
             velocity_profile_filename=velocity_profile_filename,
             display_info=self._current_display_info,
             overlay_filename=overlay_filename,
