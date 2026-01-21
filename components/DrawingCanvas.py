@@ -131,8 +131,13 @@ class DrawingCanvas(QtWidgets.QWidget):
             pos = self._mapEventToImage(event.position())
             self.last_point = pos
 
-            # Zapisujemy pixel (timestamp, perf, x, y) - przypadek, gdy zostanie narysowana kropka
-            self._current_stroke_points = [(time.time(), perf_counter(), pos.x(), pos.y())]
+            # Znormalizowane współrzędne
+            image_rect = self.image.rect()
+            x_norm = pos.x() / (image_rect.width() - 1) if image_rect.width() > 1 else 0
+            y_norm = pos.y() / (image_rect.height() - 1) if image_rect.height() > 1 else 0
+
+            # Zapisujemy pixel (timestamp, perf, x, y, x_norm, y_norm) - przypadek, gdy zostanie narysowana kropka
+            self._current_stroke_points = [(time.time(), perf_counter(), pos.x(), pos.y(), x_norm, y_norm)]
             self._current_stroke_overdraw_count = 0
             self._current_stroke_total_count = 0
             self._current_stroke_overdraw_cells = {}
@@ -153,7 +158,15 @@ class DrawingCanvas(QtWidgets.QWidget):
                 self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
 
             self._current_stroke_total_count += 1
-            self._current_stroke_points.append((time.time(), perf_counter(), current_point.x(), current_point.y()))
+
+            # Znormalizowane współrzędne
+            image_rect = self.image.rect()
+            x_norm = current_point.x() / (image_rect.width() - 1) if image_rect.width() > 1 else 0
+            y_norm = current_point.y() / (image_rect.height() - 1) if image_rect.height() > 1 else 0
+
+            self._current_stroke_points.append(
+                (time.time(), perf_counter(), current_point.x(), current_point.y(), x_norm, y_norm)
+            )
 
             painter = QtGui.QPainter(self.image)
             pen = QtGui.QPen(self.pen_color, self.pen_width,
@@ -176,6 +189,48 @@ class DrawingCanvas(QtWidgets.QWidget):
             self.strokeFinished.emit()
             self.last_point = None
 
+    def _distance_point_to_line(self, point, line_start, line_end):
+        """Oblicza prostopadłą odległość punktu od prostej."""
+        import math
+        x0, y0 = point
+        x1, y1 = line_start
+        x2, y2 = line_end
+
+        numerator = abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1)
+        denominator = math.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2)
+        return numerator / denominator if denominator != 0 else 0
+
+    def _douglas_peucker(self, points, epsilon):
+        """
+        Upraszcza krzywą za pomocą algorytmu Douglasa-Peuckera.
+        points: Lista krotek (timestamp, perf, x, y, x_norm, y_norm)
+        epsilon: Próg tolerancji w pikselach
+        """
+        if len(points) < 3:
+            return points
+
+        dmax = 0
+        index = 0
+        start = points[0]
+        end = points[-1]
+
+        for i in range(1, len(points) - 1):
+            p = (points[i][2], points[i][3])
+            p_start = (start[2], start[3])
+            p_end = (end[2], end[3])
+
+            d = self._distance_point_to_line(p, p_start, p_end)
+            if d > dmax:
+                index = i
+                dmax = d
+
+        if dmax > epsilon:
+            left_results = self._douglas_peucker(points[:index + 1], epsilon)
+            right_results = self._douglas_peucker(points[index:], epsilon)
+            return left_results[:-1] + right_results
+        else:
+            return [points[0], points[-1]]
+
     def _emit_stroke_data(self):
         """Oblicza i emituje metryki dla zakończonej kreski."""
         if not self._current_stroke_points:
@@ -183,45 +238,51 @@ class DrawingCanvas(QtWidgets.QWidget):
 
         # Obliczanie długości ścieżki i zmian kierunku
         path_length = 0
-        direction_changes = 0
-        ts0, t0, x0, y0 = self._current_stroke_points[0]
+        ts0, t0, x0, y0, xn0, yn0 = self._current_stroke_points[0]
         min_x = max_x = x0
         min_y = max_y = y0
 
         import math
 
-        last_angle = None
-        # Próg zmiany kierunku (w stopniach) - np. 45 stopni. Zgodnie z wytycznymi Pani psycholog.
-        ANGLE_THRESHOLD = 45
-
+        # Wyliczamy całkowitą długość ścieżki na surowych danych
         for i in range(1, len(self._current_stroke_points)):
-            ts1, t1, x1, y1 = self._current_stroke_points[i - 1]
-            ts2, t2, x2, y2 = self._current_stroke_points[i]
-
-            # Tworzymy wektor
-            dx = x2 - x1  # Przesunięcie w osi X
-            dy = y2 - y1  # Przesunięcie w osi Y
-
-            # Wyliczamy odległość pomiędzy punktami
-            dist = (dx ** 2 + dy ** 2) ** 0.5
+            p1 = self._current_stroke_points[i - 1]
+            p2 = self._current_stroke_points[i]
+            dist = ((p2[2] - p1[2]) ** 2 + (p2[3] - p1[3]) ** 2) ** 0.5
             path_length += dist
 
-            # Wyliczamy kąt pomiędzy wektorami [-pi, pi] aby wykryć nagłe zmiany kirunku podczas rysowania
-            if dist > 2:  # Ignorujemy bardzo małe ruchy (może to być szum)
+            min_x = min(min_x, p2[2])
+            max_x = max(max_x, p2[2])
+            min_y = min(min_y, p2[3])
+            max_y = max(max_y, p2[3])
+
+        # Upraszczanie linii algorytmem Douglasa-Peuckera do detekcji zmian kierunku
+        # Epsilon = 3 piksele jako rozsądny kompromis między szumem a precyzją
+        simplified_points = self._douglas_peucker(self._current_stroke_points, epsilon=3.0)
+
+        direction_changes = 0
+        last_angle = None
+        # Próg zmiany kierunku (w stopniach) - np. 45 stopni.
+        ANGLE_THRESHOLD = 45
+
+        for i in range(1, len(simplified_points)):
+            p1 = simplified_points[i - 1]
+            p2 = simplified_points[i]
+
+            dx = p2[2] - p1[2]
+            dy = p2[3] - p1[3]
+            dist = (dx ** 2 + dy ** 2) ** 0.5
+
+            if dist > 2:  # Dodatkowe zabezpieczenie, choć DP już powinien to odfiltrować
                 current_angle = math.atan2(dy, dx)
                 if last_angle is not None:
                     diff = abs(math.degrees(current_angle - last_angle))
                     if diff > 180:
                         diff = 360 - diff
                     if diff > ANGLE_THRESHOLD:
-                        print(f"DIRECTION CHAGED DIFF: {diff}")
+                        print(f"[INFO]: Direction change detected, angle: {diff}")
                         direction_changes += 1
                 last_angle = current_angle
-
-            min_x = min(min_x, x2)
-            max_x = max(max_x, x2)
-            min_y = min(min_y, y2)
-            max_y = max(max_y, y2)
 
         # Pole powierzchni rysunku (nie mylić z polem powierzchni do rysowania).
         bbox_area = (max_x - min_x) * (max_y - min_y)
@@ -256,8 +317,14 @@ class DrawingCanvas(QtWidgets.QWidget):
                 self.firstStroke.emit()
             self.strokeStarted.emit()
             self.last_point = mapped_pos
-            # Zapisujemy pixel (timestamp, perf, x, y) - przypadek, gdy zostanie narysowana kropka
-            self._current_stroke_points = [(time.time(), perf_counter(), mapped_pos.x(), mapped_pos.y())]
+
+            # Znormalizowane współrzędne
+            image_rect = self.image.rect()
+            xn = mapped_pos.x() / (image_rect.width() - 1) if image_rect.width() > 1 else 0
+            yn = mapped_pos.y() / (image_rect.height() - 1) if image_rect.height() > 1 else 0
+
+            # Zapisujemy pixel (timestamp, perf, x, y, x_norm, y_norm) - przypadek, gdy zostanie narysowana kropka
+            self._current_stroke_points = [(time.time(), perf_counter(), mapped_pos.x(), mapped_pos.y(), xn, yn)]
             self._current_stroke_overdraw_count = 0
             self._current_stroke_total_count = 0
             self._current_stroke_overdraw_cells = {}
@@ -274,7 +341,13 @@ class DrawingCanvas(QtWidgets.QWidget):
                 self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
 
             self._current_stroke_total_count += 1
-            self._current_stroke_points.append((time.time(), perf_counter(), mapped_pos.x(), mapped_pos.y()))
+
+            # Znormalizowane współrzędne
+            image_rect = self.image.rect()
+            xn = mapped_pos.x() / (image_rect.width() - 1) if image_rect.width() > 1 else 0
+            yn = mapped_pos.y() / (image_rect.height() - 1) if image_rect.height() > 1 else 0
+
+            self._current_stroke_points.append((time.time(), perf_counter(), mapped_pos.x(), mapped_pos.y(), xn, yn))
 
             painter = QtGui.QPainter(self.image)
             pen = QtGui.QPen(self.pen_color, self.pen_width,

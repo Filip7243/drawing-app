@@ -340,7 +340,7 @@ class TestMetrics:
 
         # Detekcja ponownego odwiedzania obszarów
         stroke_visited_cells = set()
-        for ts, t, x, y in points:
+        for ts, t, x, y, _, _ in points:
             cell = (x // self._grid_size, y // self._grid_size)
             stroke_visited_cells.add(cell)
 
