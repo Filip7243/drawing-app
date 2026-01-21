@@ -16,7 +16,7 @@ from db.models import TestMetaData, Image
 from db.repository.ImageRepository import ImageRepository
 from db.service.ExaminationService import ExaminationService
 
-SCRUBBING_THRESHOLD = 100
+EFFICIENCY_THRESHOLD = 2.5
 
 
 @dataclass
@@ -62,7 +62,10 @@ class DrawingRecord:
     revisits_count: int = 0
     shading_detected: bool = False
     direction_changes_count: int = 0
+    directional_reversals_count: int = 0
     rapid_velocity_changes_count: int = 0
+    efficiency_ratio: float = 0.0
+    max_local_density: float = 0.0
     avg_velocity: float = 0.0
     max_velocity: float = 0.0
     velocity_ratio: float = 0.0
@@ -145,15 +148,21 @@ class TestMetrics:
         self._current_redo_count: int = 0
         self._current_overdrawing_pixels: int = 0
         self._current_total_drawn_pixels: int = 0
+        self._current_path_length: float = 0.0
+        self._current_simplified_path_length: float = 0.0
         self._current_revisits_count: int = 0
         self._current_shading_detected: bool = False
         self._current_direction_changes_count: int = 0
+        self._current_directional_reversals_count: int = 0
         self._current_rapid_velocity_changes_count: int = 0
+        self._current_efficiency_ratio: float = 0.0
+        self._current_max_local_density: float = 0.0
         self._current_velocities: list[float] = []
         self._current_strokes: list[list[tuple[float, int, int]]] = []
         self._visited_grid_cells: set[tuple[int, int]] = set()
         self._grid_visit_counts: dict[tuple[int, int], int] = {}
         self._grid_overdraw_counts: dict[tuple[int, int], int] = {}
+        self._grid_path_lengths: dict[tuple[int, int], float] = {}
         self._grid_size: int = 40  # rozmiar komórki siatki w pikselach
         self._last_stroke_finish_at: float | None = None
         self._records: list[DrawingRecord] = []
@@ -246,15 +255,21 @@ class TestMetrics:
         self._current_redo_count = 0
         self._current_overdrawing_pixels = 0
         self._current_total_drawn_pixels = 0
+        self._current_path_length = 0.0
+        self._current_simplified_path_length = 0.0
         self._current_revisits_count = 0
         self._current_shading_detected = False
         self._current_direction_changes_count = 0
+        self._current_directional_reversals_count = 0
         self._current_rapid_velocity_changes_count = 0
+        self._current_efficiency_ratio = 0.0
+        self._current_max_local_density = 0.0
         self._current_velocities = []
         self._current_strokes = []
         self._visited_grid_cells = set()
         self._grid_visit_counts = {}
         self._grid_overdraw_counts = {}
+        self._grid_path_lengths = {}
         self._last_stroke_finish_at = None
         self._drawing_counter += 1
 
@@ -328,26 +343,50 @@ class TestMetrics:
         self._current_overdrawing_pixels += stroke_data.get('overdrawn_pixels', 0)
         self._current_total_drawn_pixels += stroke_data.get('total_pixels', 0)
         self._current_direction_changes_count += stroke_data.get('direction_changes', 0)
+        self._current_directional_reversals_count += stroke_data.get('directional_reversals', 0)
         self._current_rapid_velocity_changes_count += stroke_data.get('rapid_velocity_changes', 0)
         self._current_velocities.extend(stroke_data.get('velocity_profile', []))
+
+        path_length = stroke_data.get('path_length', 0)
+        simplified_path_length = stroke_data.get('simplified_path_length', 0)
+        self._current_path_length += path_length
+        self._current_simplified_path_length += simplified_path_length
 
         # Zapisujemy surowe dane punktów narysowanej linii wraz z ich timestampami.
         points = stroke_data.get('points', [])
         self._current_strokes.append(points)
 
-        path_length = stroke_data.get('path_length', 0)
         bbox_area = stroke_data.get('bounding_box_area', 1)
-        # Obliczamy stosunek długości narysowanej linii do obszaru, jaki zajmuje,
-        # jeśli droga bardzo długa, a obszar mały to znaczy, że jest cieniowanie/szorowanie ("malowanie w miejscu")
-        # SCRUBBING_THRESHOLD do dostosowania
-        if bbox_area > 0 and (path_length * path_length) / bbox_area > SCRUBBING_THRESHOLD:
-            print(f'path_len:{path_length}')
-            print(f'bbox_area:{bbox_area}')
-            print(f'SCRUBBING_THRESHOLD:{SCRUBBING_THRESHOLD}')
-            area = (path_length * path_length) / bbox_area
-            print(f'(path_length * path_length) / bbox_area:{area}')
+        directional_reversals = stroke_data.get('directional_reversals', 0)
+        cell_path_lengths = stroke_data.get('cell_path_lengths', {})
+
+        # Detekcja wysokiej gęstości lokalnej (nowy dowód na cieniowanie)
+        # Jeśli w jednej komórce 20x20 pikseli droga jest zbyt duża, świadczy to o "szorowaniu" miejsca.
+        local_shading_detected = False
+        for cell, length in cell_path_lengths.items():
+            self._grid_path_lengths[cell] = self._grid_path_lengths.get(cell, 0.0) + length
+            # Próg 100 pikseli w komórce 20x20 (5-krotne przejście przez komórkę)
+            if self._grid_path_lengths[cell] > 100:
+                local_shading_detected = True
+
+        # Obliczamy stosunek długości narysowanej linii do długości ścieżki uproszczonej.
+        # Jeśli droga jest znacznie dłuższa (np. 2.5x) od geometrycznego kształtu,
+        # sugeruje to "nadpracowywanie" linii (shading/scrubbing).
+        # Jest to wskaźnik znacznie bardziej odporny na orientację i rozmiar niż area_ratio.
+        stroke_efficiency = path_length / simplified_path_length if simplified_path_length > 0 else 1.0
+        
+        # Heurystyka cieniowania:
+        # 1. Wysoki współczynnik złożoności drogi (nadmierne rysowanie po tym samym śladzie)
+        # 2. Wykrycie co najmniej 2 gwałtownych nawrotów (180 stopni) w obrębie jednej kreski
+        # 3. Wykrycie anomalnej gęstości lokalnej drogi (szorowanie punktowe)
+        if stroke_efficiency > EFFICIENCY_THRESHOLD or directional_reversals >= 2 or local_shading_detected:
+            print(f'[INFO]: Shading/Scrubbing detected in stroke!')
+            print(f'       - path_len: {path_length:.2f}')
+            print(f'       - simplified_path_len: {simplified_path_length:.2f}')
+            print(f'       - efficiency_ratio: {stroke_efficiency:.2f} (threshold: {EFFICIENCY_THRESHOLD})')
+            print(f'       - directional_reversals: {directional_reversals}')
+            print(f'       - local_density_shading: {local_shading_detected}')
             self._current_shading_detected = True
-            print("Wykryto cieniowanie/szorowanie!")
 
         # Detekcja ponownego odwiedzania obszarów
         stroke_visited_cells = set()
@@ -425,6 +464,12 @@ class TestMetrics:
         max_vel = max(self._current_velocities) if self._current_velocities else 0.0
         vel_ratio = avg_vel / max_vel if max_vel > 0 else 0.0
 
+        # Współczynnik efektywności dla całego rysunku
+        efficiency_ratio = self._current_path_length / self._current_simplified_path_length if self._current_simplified_path_length > 0 else 1.0
+
+        # Obliczamy maksymalną gęstość lokalną (najbardziej wyszorowane miejsce)
+        max_density = max(self._grid_path_lengths.values()) if self._grid_path_lengths else 0.0
+
         overdrawing_score = 0.0
         # Wylicza score "rysowania w miejscu", im większy, tym częściej się to powtarzało na rysunku
         # Score to stosunek liczby pikseli "rysowanych w miejscu" do wszystkich rysowanych pikseli
@@ -451,7 +496,10 @@ class TestMetrics:
             revisits_count=self._current_revisits_count,
             shading_detected=self._current_shading_detected,
             direction_changes_count=self._current_direction_changes_count,
+            directional_reversals_count=self._current_directional_reversals_count,
             rapid_velocity_changes_count=self._current_rapid_velocity_changes_count,
+            efficiency_ratio=efficiency_ratio,
+            max_local_density=max_density,
             avg_velocity=avg_vel,
             max_velocity=max_vel,
             velocity_ratio=vel_ratio,
@@ -482,7 +530,11 @@ class TestMetrics:
         self._current_revisits_count = 0
         self._current_shading_detected = False
         self._current_direction_changes_count = 0
+        self._current_directional_reversals_count = 0
         self._current_rapid_velocity_changes_count = 0
+        self._current_path_length = 0.0
+        self._current_simplified_path_length = 0.0
+        self._current_efficiency_ratio = 0.0
         self._current_velocities = []
         self._current_strokes = []
         self._visited_grid_cells = set()

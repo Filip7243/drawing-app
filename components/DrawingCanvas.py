@@ -31,6 +31,8 @@ class DrawingCanvas(QtWidgets.QWidget):
         self._current_stroke_total_count = 0
         self._current_stroke_overdraw_cells = {}
         self._grid_size = 40
+        self._stroke_dist_acc = 0.0
+        self._pixel_last_dist = {}
 
     def _save_state(self):
         """Zapisuje aktualny obraz na stosie undo."""
@@ -141,6 +143,8 @@ class DrawingCanvas(QtWidgets.QWidget):
             self._current_stroke_overdraw_count = 0
             self._current_stroke_total_count = 0
             self._current_stroke_overdraw_cells = {}
+            self._stroke_dist_acc = 0.0
+            self._pixel_last_dist = {(pos.x(), pos.y()): 0.0}
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
         if (event.buttons() & QtCore.Qt.MouseButton.LeftButton
@@ -148,14 +152,24 @@ class DrawingCanvas(QtWidgets.QWidget):
                 and self.image is not None):
             current_point = self._mapEventToImage(event.position())
 
-            # Detekcja nadrysowania ("rysowania w miejscu")
-            pixel_color = QtGui.QColor(self.image.pixel(current_point))
-            if pixel_color.rgb() != QtGui.QColor("#FFFFFF").rgb():
-                self._current_stroke_overdraw_count += 1
-
-                # Zapisywanie nadrysowania w komórce
-                cx, cy = current_point.x() // self._grid_size, current_point.y() // self._grid_size
-                self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
+            # Poprawiona detekcja nadrysowania ("rysowania w miejscu")
+            # Piksel uznajemy za nadrysowany tylko, gdy wracamy w to samo miejsce po przejechaniu 
+            # dystansu > 3 * grubość pędzla (eliminuje fałszywe alarmy przy grubym pędzlu)
+            dx = current_point.x() - self.last_point.x()
+            dy = current_point.y() - self.last_point.y()
+            segment_dist = (dx**2 + dy**2)**0.5
+            self._stroke_dist_acc += segment_dist
+            
+            pos_tuple = (current_point.x(), current_point.y())
+            if pos_tuple in self._pixel_last_dist:
+                last_d = self._pixel_last_dist[pos_tuple]
+                if (self._stroke_dist_acc - last_d) > (3 * self.pen_width):
+                    self._current_stroke_overdraw_count += 1
+                    # Zapisywanie nadrysowania w komórce
+                    cx, cy = current_point.x() // self._grid_size, current_point.y() // self._grid_size
+                    self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
+            
+            self._pixel_last_dist[pos_tuple] = self._stroke_dist_acc
 
             self._current_stroke_total_count += 1
 
@@ -250,6 +264,11 @@ class DrawingCanvas(QtWidgets.QWidget):
         dist_acc = 0.0
         dt_acc = 0.0
 
+        # Gęstość lokalna (Grid Path Density) - komórki 20x20 pikseli
+        # To pozwala na precyzyjne mapowanie obszarów, gdzie dziecko cieniowało rysunek.
+        local_grid_size = 20
+        cell_path_lengths = {}
+
         # Wyliczamy całkowitą długość ścieżki oraz profil prędkości na surowych danych
         for i in range(1, len(self._current_stroke_points)):
             p1 = self._current_stroke_points[i - 1]
@@ -258,6 +277,10 @@ class DrawingCanvas(QtWidgets.QWidget):
             # Odległość euklidesowa
             dist = ((p2[2] - p1[2]) ** 2 + (p2[3] - p1[3]) ** 2) ** 0.5
             path_length += dist
+
+            # Akumulacja drogi w komórkach (Gęstość lokalna)
+            lcx, lcy = int(p2[2] // local_grid_size), int(p2[3] // local_grid_size)
+            cell_path_lengths[(lcx, lcy)] = cell_path_lengths.get((lcx, lcy), 0) + dist
 
             # Czas
             dt = p2[1] - p1[1]
@@ -321,10 +344,14 @@ class DrawingCanvas(QtWidgets.QWidget):
         # Epsilon = 3 piksele jako rozsądny kompromis między szumem a precyzją
         simplified_points = self._douglas_peucker(self._current_stroke_points, epsilon=3.0)
 
+        simplified_path_length = 0
         direction_changes = 0
+        directional_reversals = 0
         last_angle = None
         # Próg zmiany kierunku (w stopniach) - np. 45 stopni.
         ANGLE_THRESHOLD = 45
+        # Próg nawrotu (w stopniach) - np. 150 stopni (ruch niemal w przeciwnym kierunku - charakterystyczny dla szorowania)
+        REVERSAL_THRESHOLD = 150
 
         for i in range(1, len(simplified_points)):
             p1 = simplified_points[i - 1]
@@ -332,30 +359,44 @@ class DrawingCanvas(QtWidgets.QWidget):
 
             dx = p2[2] - p1[2]
             dy = p2[3] - p1[3]
-            dist = (dx ** 2 + dy ** 2) ** 0.5
+            dist_seg = (dx ** 2 + dy ** 2) ** 0.5
+            simplified_path_length += dist_seg
 
-            if dist > 2:  # Dodatkowe zabezpieczenie, choć DP już powinien to odfiltrować
+            if dist_seg > 2:  # Dodatkowe zabezpieczenie, choć DP już powinien to odfiltrować
                 current_angle = math.atan2(dy, dx)
                 if last_angle is not None:
                     diff = abs(math.degrees(current_angle - last_angle))
                     if diff > 180:
                         diff = 360 - diff
+                    
+                    # Zliczanie ogólnych zmian kierunku
                     if diff > ANGLE_THRESHOLD:
                         print(f"[INFO]: Direction change detected, angle: {diff}")
                         direction_changes += 1
+                    
+                    # Zliczanie nawrotów (specyficzne dla cieniowania/szorowania)
+                    if diff > REVERSAL_THRESHOLD:
+                        print(f"[INFO]: Directional reversal detected, angle: {diff}")
+                        directional_reversals += 1
+                        
                 last_angle = current_angle
 
-        # Pole powierzchni rysunku (nie mylić z polem powierzchni do rysowania).
-        bbox_area = (max_x - min_x) * (max_y - min_y)
+        # Pole powierzchni rysunku (z uwzględnieniem grubości pędzla jako paddingu)
+        # Dodanie pen_width zapobiega dzieleniu przez zero i urealnia obszar zajmowany przez ślad.
+        padding = self.pen_width
+        bbox_area = (max_x - min_x + padding) * (max_y - min_y + padding)
 
         data = {
             'overdrawn_pixels': self._current_stroke_overdraw_count,
             'total_pixels': self._current_stroke_total_count,
             'points': self._current_stroke_points,
             'path_length': path_length,
+            'simplified_path_length': simplified_path_length,
             'bounding_box_area': bbox_area,
             'direction_changes': direction_changes,
+            'directional_reversals': directional_reversals,
             'overdraw_cells': self._current_stroke_overdraw_cells,
+            'cell_path_lengths': cell_path_lengths,
             'avg_velocity': avg_velocity,
             'max_velocity': max_velocity,
             'velocity_ratio': velocity_ratio,
@@ -394,17 +435,29 @@ class DrawingCanvas(QtWidgets.QWidget):
             self._current_stroke_overdraw_count = 0
             self._current_stroke_total_count = 0
             self._current_stroke_overdraw_cells = {}
+            self._stroke_dist_acc = 0.0
+            self._pixel_last_dist = {(mapped_pos.x(), mapped_pos.y()): 0.0}
             event.accept()
 
         elif event.type() == QtCore.QEvent.Type.TabletMove and self.last_point is not None:
-            # Detekcja nadrysowania ("rysowania w miejscu")
-            pixel_color = QtGui.QColor(self.image.pixel(mapped_pos))
-            if pixel_color.rgb() != QtGui.QColor("#FFFFFF").rgb():
-                self._current_stroke_overdraw_count += 1
-
-                # Zapisywanie nadrysowania w komórce
-                cx, cy = mapped_pos.x() // self._grid_size, mapped_pos.y() // self._grid_size
-                self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
+            # Poprawiona detekcja nadrysowania ("rysowania w miejscu")
+            # Piksel uznajemy za nadrysowany tylko, gdy wracamy w to samo miejsce po przejechaniu 
+            # dystansu > 3 * grubość pędzla (eliminuje fałszywe alarmy przy grubym pędzlu)
+            dx = mapped_pos.x() - self.last_point.x()
+            dy = mapped_pos.y() - self.last_point.y()
+            segment_dist = (dx**2 + dy**2)**0.5
+            self._stroke_dist_acc += segment_dist
+            
+            pos_tuple = (mapped_pos.x(), mapped_pos.y())
+            if pos_tuple in self._pixel_last_dist:
+                last_d = self._pixel_last_dist[pos_tuple]
+                if (self._stroke_dist_acc - last_d) > (3 * self.pen_width):
+                    self._current_stroke_overdraw_count += 1
+                    # Zapisywanie nadrysowania w komórce
+                    cx, cy = mapped_pos.x() // self._grid_size, mapped_pos.y() // self._grid_size
+                    self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
+            
+            self._pixel_last_dist[pos_tuple] = self._stroke_dist_acc
 
             self._current_stroke_total_count += 1
 
