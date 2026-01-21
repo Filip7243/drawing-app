@@ -236,7 +236,7 @@ class DrawingCanvas(QtWidgets.QWidget):
         if not self._current_stroke_points:
             return
 
-        # Obliczanie długości ścieżki i zmian kierunku
+        # Obliczanie długości ścieżki, zmian kierunku oraz metryk kinematycznych
         path_length = 0
         ts0, t0, x0, y0, xn0, yn0 = self._current_stroke_points[0]
         min_x = max_x = x0
@@ -244,17 +244,78 @@ class DrawingCanvas(QtWidgets.QWidget):
 
         import math
 
-        # Wyliczamy całkowitą długość ścieżki na surowych danych
+        MIN_DT = 0.02  # 20ms próg (50Hz) - idealny dla algorytmu akumulacyjnego
+        velocities = []
+
+        dist_acc = 0.0
+        dt_acc = 0.0
+
+        # Wyliczamy całkowitą długość ścieżki oraz profil prędkości na surowych danych
         for i in range(1, len(self._current_stroke_points)):
             p1 = self._current_stroke_points[i - 1]
             p2 = self._current_stroke_points[i]
+
+            # Odległość euklidesowa
             dist = ((p2[2] - p1[2]) ** 2 + (p2[3] - p1[3]) ** 2) ** 0.5
             path_length += dist
 
+            # Czas
+            dt = p2[1] - p1[1]
+            if dt <= 0:
+                continue  # zabezpieczenie
+
+            # Akumulacja
+            dist_acc += dist
+            dt_acc += dt
+
+            # Liczymy prędkość dopiero po przekroczeniu progu czasowego
+            if dt_acc >= MIN_DT:
+                v = dist_acc / dt_acc
+                velocities.append(v)
+
+                # reset akumulatorów
+                dist_acc = 0.0
+                dt_acc = 0.0
+
+            # Bounding box liczymy zawsze
             min_x = min(min_x, p2[2])
             max_x = max(max_x, p2[2])
             min_y = min(min_y, p2[3])
             max_y = max(max_y, p2[3])
+
+        # Silniejsze wygładzanie profilu prędkości (średnia ruchoma z okna 5 punktów)
+        if len(velocities) > 5:
+            smoothed_v = []
+            window_size = 5
+            for i in range(len(velocities)):
+                start_idx = max(0, i - window_size // 2)
+                end_idx = min(len(velocities), i + window_size // 2 + 1)
+                window = velocities[start_idx:end_idx]
+                smoothed_v.append(sum(window) / len(window))
+            velocities = smoothed_v
+
+        # Metryki kinematyczne (log-normalne)
+        avg_velocity = sum(velocities) / len(velocities) if velocities else 0
+        max_velocity = max(velocities) if velocities else 0
+        velocity_ratio = avg_velocity / max_velocity if max_velocity > 0 else 0
+
+        # Zliczanie gwałtownych zmian prędkości (szczytów)
+        rapid_velocity_changes = 0
+        if len(velocities) > 2:
+            # Liczenie lokalnych ekstremów (szczytów) powyżej pewnego progu
+            # Szczyt musi być większy niż sąsiedzi i większy niż 10% max prędkości (filtr szumu)
+            variance = sum((v - avg_velocity) ** 2 for v in velocities) / len(velocities)
+            std_dev = variance ** 0.5
+            v_threshold = max(
+                0.15 * max_velocity,
+                avg_velocity + 1.0 * std_dev
+            )
+            for i in range(1, len(velocities) - 1):
+                if (velocities[i] > velocities[i-1] and
+                    velocities[i] > velocities[i+1] and
+                    velocities[i] > v_threshold):
+                    print( f"[INFO]: Rapid velocity change detected: {velocities[i]} (threshold: {v_threshold})")
+                    rapid_velocity_changes += 1
 
         # Upraszczanie linii algorytmem Douglasa-Peuckera do detekcji zmian kierunku
         # Epsilon = 3 piksele jako rozsądny kompromis między szumem a precyzją
@@ -294,7 +355,12 @@ class DrawingCanvas(QtWidgets.QWidget):
             'path_length': path_length,
             'bounding_box_area': bbox_area,
             'direction_changes': direction_changes,
-            'overdraw_cells': self._current_stroke_overdraw_cells
+            'overdraw_cells': self._current_stroke_overdraw_cells,
+            'avg_velocity': avg_velocity,
+            'max_velocity': max_velocity,
+            'velocity_ratio': velocity_ratio,
+            'rapid_velocity_changes': rapid_velocity_changes,
+            'velocity_profile': velocities
         }
         # Event przechwytywany w FlowController.py
         self.strokeDataCollected.emit(data)

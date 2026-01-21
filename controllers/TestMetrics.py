@@ -62,6 +62,11 @@ class DrawingRecord:
     revisits_count: int = 0
     shading_detected: bool = False
     direction_changes_count: int = 0
+    rapid_velocity_changes_count: int = 0
+    avg_velocity: float = 0.0
+    max_velocity: float = 0.0
+    velocity_ratio: float = 0.0
+    velocity_profile_filename: Optional[str] = None
     display_info: Optional[dict] = field(default=None)
     overlay_filename: Optional[str] = None
     heatmap_filename: Optional[str] = None
@@ -143,6 +148,8 @@ class TestMetrics:
         self._current_revisits_count: int = 0
         self._current_shading_detected: bool = False
         self._current_direction_changes_count: int = 0
+        self._current_rapid_velocity_changes_count: int = 0
+        self._current_velocities: list[float] = []
         self._current_strokes: list[list[tuple[float, int, int]]] = []
         self._visited_grid_cells: set[tuple[int, int]] = set()
         self._grid_visit_counts: dict[tuple[int, int], int] = {}
@@ -242,6 +249,8 @@ class TestMetrics:
         self._current_revisits_count = 0
         self._current_shading_detected = False
         self._current_direction_changes_count = 0
+        self._current_rapid_velocity_changes_count = 0
+        self._current_velocities = []
         self._current_strokes = []
         self._visited_grid_cells = set()
         self._grid_visit_counts = {}
@@ -319,6 +328,8 @@ class TestMetrics:
         self._current_overdrawing_pixels += stroke_data.get('overdrawn_pixels', 0)
         self._current_total_drawn_pixels += stroke_data.get('total_pixels', 0)
         self._current_direction_changes_count += stroke_data.get('direction_changes', 0)
+        self._current_rapid_velocity_changes_count += stroke_data.get('rapid_velocity_changes', 0)
+        self._current_velocities.extend(stroke_data.get('velocity_profile', []))
 
         # Zapisujemy surowe dane punktów narysowanej linii wraz z ich timestampami.
         points = stroke_data.get('points', [])
@@ -401,6 +412,19 @@ class TestMetrics:
             heatmap_path = self.session_dir / heatmap_filename
             heatmap_img.save(str(heatmap_path), "PNG")
 
+        # 3. Generowanie i zapisywanie profilu prędkości (krzywa log-normalna)
+        velocity_profile_filename = None
+        if self._current_velocities:
+            velocity_img = self._generate_velocity_profile_image()
+            if velocity_img:
+                velocity_profile_filename = f"{base_filename}_velocity.png"
+                velocity_path = self.session_dir / velocity_profile_filename
+                velocity_img.save(str(velocity_path), "PNG")
+
+        avg_vel = sum(self._current_velocities) / len(self._current_velocities) if self._current_velocities else 0.0
+        max_vel = max(self._current_velocities) if self._current_velocities else 0.0
+        vel_ratio = avg_vel / max_vel if max_vel > 0 else 0.0
+
         overdrawing_score = 0.0
         # Wylicza score "rysowania w miejscu", im większy, tym częściej się to powtarzało na rysunku
         # Score to stosunek liczby pikseli "rysowanych w miejscu" do wszystkich rysowanych pikseli
@@ -427,6 +451,11 @@ class TestMetrics:
             revisits_count=self._current_revisits_count,
             shading_detected=self._current_shading_detected,
             direction_changes_count=self._current_direction_changes_count,
+            rapid_velocity_changes_count=self._current_rapid_velocity_changes_count,
+            avg_velocity=avg_vel,
+            max_velocity=max_vel,
+            velocity_ratio=vel_ratio,
+            velocity_profile_filename=velocity_profile_filename,
             display_info=self._current_display_info,
             overlay_filename=overlay_filename,
             heatmap_filename=heatmap_filename,
@@ -453,6 +482,8 @@ class TestMetrics:
         self._current_revisits_count = 0
         self._current_shading_detected = False
         self._current_direction_changes_count = 0
+        self._current_rapid_velocity_changes_count = 0
+        self._current_velocities = []
         self._current_strokes = []
         self._visited_grid_cells = set()
         self._grid_visit_counts = {}
@@ -578,3 +609,38 @@ class TestMetrics:
         painter.end()
 
         return result_img
+
+    def _generate_velocity_profile_image(self) -> Optional[QImage]:
+        """Generuje wykres profilu prędkości (prędkość w czasie) przy użyciu matplotlib."""
+        if not self._current_velocities:
+            return None
+
+        try:
+            import matplotlib.pyplot as plt
+            import io
+
+            # Używamy backendu Agg, aby nie otwierać okien GUI
+            plt.switch_backend('Agg')
+
+            plt.figure(figsize=(10, 5))
+            plt.plot(self._current_velocities, color='blue', linewidth=1.5, label='Prędkość')
+
+            # Dodanie opisów i siatki
+            plt.title("Profil prędkości rysowania (Teoria Log-Normalna)", fontsize=14)
+            plt.xlabel("Próbki (czas)", fontsize=12)
+            plt.ylabel("Prędkość (px/s)", fontsize=12)
+            plt.grid(True, linestyle='--', alpha=0.7)
+            plt.legend()
+
+            # Zapis do bufora w pamięci
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+            plt.close() # Zamknięcie figury
+
+            buf.seek(0)
+            img = QImage.fromData(buf.getvalue())
+            return img
+        except Exception as e:
+            print(f"Błąd podczas generowania wykresu profilu prędkości (matplotlib): {e}")
+            traceback.print_exc()
+            return None
