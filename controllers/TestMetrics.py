@@ -17,7 +17,12 @@ from db.models import TestMetaData, Image
 from db.repository.ImageRepository import ImageRepository
 from db.service.ExaminationService import ExaminationService
 
+OVERDRAWING_PIXELS_IN_CELL_THRESHOLD = 100
+
+OVERLAP_RATIO_THRESHOLD = 0.50
+
 EFFICIENCY_THRESHOLD = 2.5
+REVISIT_THRESHOLD = 10.0
 
 
 @dataclass
@@ -165,7 +170,7 @@ class TestMetrics:
         self._grid_visit_counts: dict[tuple[int, int], int] = {}
         self._grid_overdraw_counts: dict[tuple[int, int], int] = {}
         self._grid_path_lengths: dict[tuple[int, int], float] = {}
-        self._grid_size: int = 40  # rozmiar komórki siatki w pikselach
+        self._grid_size: int = 30  # rozmiar komórki siatki w pikselach
         self._last_stroke_finish_at: float | None = None
         self._records: list[DrawingRecord] = []
         self._drawing_counter: int = 0
@@ -404,23 +409,22 @@ class TestMetrics:
         points = stroke_data.get('points', [])
         self._current_strokes.append(points)
 
-        bbox_area = stroke_data.get('bounding_box_area', 1)
+        # bbox_area = stroke_data.get('bounding_box_area', 1)
         directional_reversals = stroke_data.get('directional_reversals', 0)
         cell_path_lengths = stroke_data.get('cell_path_lengths', {})
 
-        # Detekcja wysokiej gęstości lokalnej (nowy dowód na cieniowanie)
+        # Detekcja wysokiej gęstości lokalnej
         # Jeśli w jednej komórce 20x20 pikseli droga jest zbyt duża, świadczy to o "szorowaniu" miejsca.
         local_shading_detected = False
         for cell, length in cell_path_lengths.items():
             self._grid_path_lengths[cell] = self._grid_path_lengths.get(cell, 0.0) + length
             # Próg 100 pikseli w komórce 20x20 (5-krotne przejście przez komórkę)
-            if self._grid_path_lengths[cell] > 100:
+            if self._grid_path_lengths[cell] > OVERDRAWING_PIXELS_IN_CELL_THRESHOLD:
                 local_shading_detected = True
 
         # Obliczamy stosunek długości narysowanej linii do długości ścieżki uproszczonej.
         # Jeśli droga jest znacznie dłuższa (np. 2.5x) od geometrycznego kształtu,
         # sugeruje to "nadpracowywanie" linii (shading/scrubbing).
-        # Jest to wskaźnik znacznie bardziej odporny na orientację i rozmiar niż area_ratio.
         stroke_efficiency = path_length / simplified_path_length if simplified_path_length > 0 else 1.0
         
         # Heurystyka cieniowania:
@@ -443,18 +447,23 @@ class TestMetrics:
             stroke_visited_cells.add(cell)
 
         # Sprawdzamy, czy ta kreska wchodzi w komórki odwiedzone przez POPRZEDNIE kreski
-        revisit_detected_in_this_stroke = False
+        visited_cells_count = 0
         for cell in stroke_visited_cells:
             # Heatmap: zwiększamy licznik dla każdej odwiedzonej komórki w tej kresce
             self._grid_visit_counts[cell] = self._grid_visit_counts.get(cell, 0) + 1
 
             if cell in self._visited_grid_cells:
-                revisit_detected_in_this_stroke = True
+                visited_cells_count += 1
 
-        # Zliczamy, ile było re-wizyt ogólnie
-        if revisit_detected_in_this_stroke:
+        # Obliczamy procent nachodzenia na już narysowane rzeczy
+        overlap_ratio = visited_cells_count / len(stroke_visited_cells) if stroke_visited_cells else 0.0
+
+        # Zliczamy, ile było re-wizyt ogólnie, ale ignorujemy:
+        # 1. bardzo krótkie ślady (np. przypadkowe kropki) -> REVISIT_THRESHOLD
+        # 2. kreski, które tylko minimalnie nachodzą na stare obszary -> 30% overlap
+        if path_length > REVISIT_THRESHOLD and overlap_ratio > OVERLAP_RATIO_THRESHOLD:
             self._current_revisits_count += 1
-            print(f"Powrót do wcześniej odwiedzonego obszaru (łącznie powrotów: {self._current_revisits_count})")
+            print(f"Powrót do wcześniej odwiedzonego obszaru (overlap: {overlap_ratio:.2%}, łącznie powrotów: {self._current_revisits_count})")
 
         # Aktualizujemy globalną siatkę odwiedzin dla tego rysunku
         self._visited_grid_cells.update(stroke_visited_cells)

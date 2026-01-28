@@ -258,7 +258,7 @@ class DrawingCanvas(QtWidgets.QWidget):
 
         import math
 
-        MIN_DT = 0.02  # 20ms próg (50Hz) - idealny dla algorytmu akumulacyjnego
+        MIN_DT = 0.02  # 20ms próg (50Hz)
         velocities = []
 
         dist_acc = 0.0
@@ -326,7 +326,7 @@ class DrawingCanvas(QtWidgets.QWidget):
         rapid_velocity_changes = 0
         if len(velocities) > 2:
             # Liczenie lokalnych ekstremów (szczytów) powyżej pewnego progu
-            # Szczyt musi być większy niż sąsiedzi i większy niż 10% max prędkości (filtr szumu)
+            # Szczyt musi być większy niż sąsiedzi i większy niż 15% max prędkości (filtr szumu)
             variance = sum((v - avg_velocity) ** 2 for v in velocities) / len(velocities)
             std_dev = variance ** 0.5
             v_threshold = max(
@@ -362,7 +362,7 @@ class DrawingCanvas(QtWidgets.QWidget):
             dist_seg = (dx ** 2 + dy ** 2) ** 0.5
             simplified_path_length += dist_seg
 
-            if dist_seg > 2:  # Dodatkowe zabezpieczenie, choć DP już powinien to odfiltrować
+            if dist_seg > 2:  # Dodatkowe zabezpieczenie (> 2px)
                 current_angle = math.atan2(dy, dx)
                 if last_angle is not None:
                     diff = abs(math.degrees(current_angle - last_angle))
