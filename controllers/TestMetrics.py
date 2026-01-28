@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import time
 import traceback
+from pupil_labs.realtime_api.simple import discover_one_device
 from dataclasses import dataclass, asdict, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -170,6 +171,19 @@ class TestMetrics:
         self._drawing_counter: int = 0
         self._current_display_info: dict | None = None
         self._current_reference_path: str | None = None
+        self._pupil_device = None
+
+    def connect_pupil(self):
+        """Metoda do łączenia się z urządzeniem Pupil Invisible."""
+        print("Looking for Pupil Invisible device...")
+        try:
+            self._pupil_device = discover_one_device(max_search_duration_seconds=10)
+            if self._pupil_device:
+                print(f"Connected to Pupil device: {self._pupil_device}")
+            else:
+                print("No Pupil device found.")
+        except Exception as e:
+            print(f"Error connecting to Pupil device: {e}")
 
     @property
     def session_dir(self) -> Path:
@@ -191,6 +205,15 @@ class TestMetrics:
         self._records.clear()  # Usuwamy poprzednie rekordy (jeśli istnieją)
         self._drawing_counter = 0
         self._current_display_info = None
+
+        if self._pupil_device:
+            try:
+                self._pupil_device.recording_start()
+                print("Pupil recording started.")
+                self._pupil_device.send_event("recording_start", event_timestamp_unix_ns=int(time.time() * 1e9))
+                print("Sent Pupil event: recording_start")
+            except Exception as e:
+                print(f"Failed to start Pupil recording or send event: {e}")
 
     def end_test(self) -> dict[str, Any]:
         """
@@ -225,6 +248,14 @@ class TestMetrics:
             self.examinationService.update_examination_times(self._test_meta_data.examine_id,
                                                              whole_time=timedelta(seconds=total_duration_s),
                                                              avg_time=timedelta(seconds=avg_time_s))
+            
+            if self._pupil_device:
+                try:
+                    self._pupil_device.recording_stop_and_save()
+                    print("Pupil recording stopped and saved.")
+                except Exception as e:
+                    print(f"Failed to stop Pupil recording: {e}")
+
             # zapisujemy do JSON
             (self.session_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
             return summary
@@ -274,6 +305,14 @@ class TestMetrics:
         self._last_stroke_finish_at = None
         self._drawing_counter += 1
 
+        if self._pupil_device:
+            event_name = f"drawing_{self._drawing_counter}_started"
+            try:
+                self._pupil_device.send_event(event_name, event_timestamp_unix_ns=int(time.time() * 1e9))
+                print(f"Sent Pupil event: {event_name}")
+            except Exception as e:
+                print(f"Failed to send Pupil event {event_name}: {e}")
+
     def record_first_stroke(self):
         """
             Zapisuje czas pierwszego dotknięcia płótna. Handler dla eventu firstStroke emitowanego w DrawingCanvas.py
@@ -282,6 +321,14 @@ class TestMetrics:
             self._current_first_stroke = perf_counter()
             self._current_first_stroke_ts = time.time()
             print(f"Pierwsze dotknięcie płótna: {self._current_first_stroke}")
+
+            if self._pupil_device:
+                event_name = f"first_stroke_drawing_{self._drawing_counter}"
+                try:
+                    self._pupil_device.send_event(event_name, event_timestamp_unix_ns=int(time.time() * 1e9))
+                    print(f"Sent Pupil event: {event_name}")
+                except Exception as e:
+                    print(f"Failed to send Pupil event {event_name}: {e}")
 
     def record_stroke_start(self):
         """
@@ -429,6 +476,15 @@ class TestMetrics:
         finished_at = perf_counter()
         finished_at_ts = time.time()
         index = self._drawing_counter
+        
+        if self._pupil_device:
+            event_name = f"drawing_{index}_ended"
+            try:
+                self._pupil_device.send_event(event_name, event_timestamp_unix_ns=int(time.time() * 1e9))
+                print(f"Sent Pupil event: {event_name}")
+            except Exception as e:
+                print(f"Failed to send Pupil event {event_name}: {e}")
+
         ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
         base_filename = f"{index}_{ts}_{self._test_meta_data.patient_id}_{self._test_meta_data.examine_id}"

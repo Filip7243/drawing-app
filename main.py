@@ -198,6 +198,7 @@ def main():
     # db.close()
 
     metrics = TestMetrics()
+    metrics.connect_pupil()
 
     controller = FlowController()
     controller.set_loop(True)
@@ -214,7 +215,6 @@ def main():
         controller.set_on_complete(None)
         controller.set_sequence(TEST_SEQUENCE)
         controller.set_test_mode(True)
-        metrics.start_test()
 
         def on_test_complete():
             summary = metrics.end_test()
@@ -237,6 +237,7 @@ def main():
     def on_start_requested():
         meta = main_page.main_form.get_test_metadata()
         metrics.test_meta_data(TestMetaData(examine_id=meta.examine_id, patient_id=meta.patient_id))
+        metrics.start_test()
         main_page.close()
         controller.start()
 
