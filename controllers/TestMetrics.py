@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import time
 import traceback
 from pupil_labs.realtime_api.simple import discover_one_device
@@ -72,6 +73,7 @@ class DrawingRecord:
     rapid_velocity_changes_count: int = 0
     efficiency_ratio: float = 0.0
     max_local_density: float = 0.0
+    max_local_density_coords: Optional[tuple[int, int]] = None
     avg_velocity: float = 0.0
     max_velocity: float = 0.0
     velocity_ratio: float = 0.0
@@ -80,7 +82,8 @@ class DrawingRecord:
     display_info: Optional[dict] = field(default=None)
     overlay_filename: Optional[str] = None
     heatmap_filename: Optional[str] = None
-    strokes_data: list[list[tuple[float, int, int]]] = field(default_factory=list)
+    strokes_data: list[list[tuple[float, float, int, int, float, float]]] = field(default_factory=list)
+    strategy_metrics: dict[str, Any] = field(default_factory=dict)
 
     @property
     def duration_s(self) -> float:
@@ -473,6 +476,71 @@ class TestMetrics:
         for cell, count in overdraw_cells.items():
             self._grid_overdraw_counts[cell] = self._grid_overdraw_counts.get(cell, 0) + count
 
+    def _calculate_strategy_metrics(self) -> dict[str, Any]:
+        """
+        Analizuje sposób konstruowania rysunku (strategię).
+        - initial_expansion_ratio: Czy zaczął od ogółu (wysoki) czy od szczegółu (niski).
+        - mean_inter_stroke_distance: Czy rysuje chaotycznie (wysoki) czy po kolei (niski).
+        - drawing_direction_vector: Średni wektor przemieszczania się rysika.
+        """
+        if not self._current_strokes:
+            return {}
+
+        strokes = self._current_strokes
+
+        def get_bbox_area(stroke_list):
+            points = [p for s in stroke_list for p in s]
+            if not points:
+                return 0.0
+
+            # Punkt: (timestamp, perf, x, y, x_norm, y_norm)
+            min_x = min(p[2] for p in points)
+            max_x = max(p[2] for p in points)
+            min_y = min(p[3] for p in points)
+            max_y = max(p[3] for p in points)
+
+            # Padding 2px dla realizmu obszaru
+            return (max_x - min_x + 2) * (max_y - min_y + 2)
+
+        # 1. Analiza Global-to-Local (Pierwsze 3 kreski vs cała reszta)
+        initial_area = get_bbox_area(strokes[:3])
+        total_area = get_bbox_area(strokes)
+        initial_expansion_ratio = initial_area / total_area if total_area > 0 else 0.0
+
+        # 2. Analiza Chaosu (Średni dystans 'w powietrzu' między kreskami)
+        inter_stroke_distances = []
+        for i in range(len(strokes) - 1):
+            if strokes[i] and strokes[i+1]:
+                p_end = strokes[i][-1]
+                p_start = strokes[i+1][0]
+                dist = math.sqrt((p_start[2] - p_end[2])**2 + (p_start[3] - p_end[3])**2)
+                inter_stroke_distances.append(dist)
+
+        mean_inter_stroke_distance = sum(inter_stroke_distances) / len(inter_stroke_distances) if inter_stroke_distances else 0.0
+
+        # 3. Kierunek rysowania (Wektor przesunięcia środków ciężkości)
+        centroids = []
+        for s in strokes:
+            if not s: continue
+            avg_x = sum(p[2] for p in s) / len(s)
+            avg_y = sum(p[3] for p in s) / len(s)
+            centroids.append((avg_x, avg_y))
+
+        avg_dx = 0.0
+        avg_dy = 0.0
+        if len(centroids) > 1:
+            diffs_x = [centroids[i+1][0] - centroids[i][0] for i in range(len(centroids)-1)]
+            diffs_y = [centroids[i+1][1] - centroids[i][1] for i in range(len(centroids)-1)]
+            avg_dx = sum(diffs_x) / len(diffs_x)
+            avg_dy = sum(diffs_y) / len(diffs_y)
+
+        return {
+            "initial_expansion_ratio": round(initial_expansion_ratio, 4),
+            "mean_inter_stroke_distance": round(mean_inter_stroke_distance, 2),
+            "drawing_direction_vector": {"dx": round(avg_dx, 2), "dy": round(avg_dy, 2)},
+            "num_strokes": len(strokes)
+        }
+
     def finish_drawing(self, image: QImage) -> DrawingRecord:
         """
         Kończy rysowanie i zapisuje wszystkie dane wraz z rysunkami
@@ -533,14 +601,21 @@ class TestMetrics:
         # Współczynnik efektywności dla całego rysunku
         efficiency_ratio = self._current_path_length / self._current_simplified_path_length if self._current_simplified_path_length > 0 else 1.0
 
-        # Obliczamy maksymalną gęstość lokalną (najbardziej wyszorowane miejsce)
-        max_density = max(self._grid_path_lengths.values()) if self._grid_path_lengths else 0.0
+        # Obliczamy maksymalną gęstość lokalną oraz jej współrzędne (najbardziej wyszorowane miejsce)
+        max_density = 0.0
+        max_coords = None
+        if self._grid_path_lengths:
+            max_coords = max(self._grid_path_lengths, key=self._grid_path_lengths.get)
+            max_density = self._grid_path_lengths[max_coords]
 
         overdrawing_score = 0.0
         # Wylicza score "rysowania w miejscu", im większy, tym częściej się to powtarzało na rysunku
         # Score to stosunek liczby pikseli "rysowanych w miejscu" do wszystkich rysowanych pikseli
         if self._current_total_drawn_pixels > 0:
             overdrawing_score = self._current_overdrawing_pixels / self._current_total_drawn_pixels
+
+        # Analiza strategii rysowania
+        strategy_metrics = self._calculate_strategy_metrics()
 
         # Znaczenie każdej ze składowych new_record opisałem powyżej w dataclass DrawingRecord
         new_record = DrawingRecord(
@@ -566,6 +641,7 @@ class TestMetrics:
             rapid_velocity_changes_count=self._current_rapid_velocity_changes_count,
             efficiency_ratio=efficiency_ratio,
             max_local_density=max_density,
+            max_local_density_coords=max_coords,
             avg_velocity=avg_vel,
             max_velocity=max_vel,
             velocity_ratio=vel_ratio,
@@ -574,7 +650,8 @@ class TestMetrics:
             display_info=self._current_display_info,
             overlay_filename=overlay_filename,
             heatmap_filename=heatmap_filename,
-            strokes_data=list(self._current_strokes)
+            strokes_data=list(self._current_strokes),
+            strategy_metrics=strategy_metrics
         )
         # Zapis danych konkretnego rysunku do listy wszystkich, na koniec w funkcji end_test lista zostanie sparsowana
         # do json i zapisana w pliku summary.json w katalogu testu

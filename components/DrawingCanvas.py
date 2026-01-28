@@ -157,9 +157,9 @@ class DrawingCanvas(QtWidgets.QWidget):
             # dystansu > 3 * grubość pędzla (eliminuje fałszywe alarmy przy grubym pędzlu)
             dx = current_point.x() - self.last_point.x()
             dy = current_point.y() - self.last_point.y()
-            segment_dist = (dx**2 + dy**2)**0.5
+            segment_dist = (dx ** 2 + dy ** 2) ** 0.5
             self._stroke_dist_acc += segment_dist
-            
+
             pos_tuple = (current_point.x(), current_point.y())
             if pos_tuple in self._pixel_last_dist:
                 last_d = self._pixel_last_dist[pos_tuple]
@@ -167,8 +167,9 @@ class DrawingCanvas(QtWidgets.QWidget):
                     self._current_stroke_overdraw_count += 1
                     # Zapisywanie nadrysowania w komórce
                     cx, cy = current_point.x() // self._grid_size, current_point.y() // self._grid_size
-                    self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
-            
+                    self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy),
+                                                                                                            0) + 1
+
             self._pixel_last_dist[pos_tuple] = self._stroke_dist_acc
 
             self._current_stroke_total_count += 1
@@ -334,10 +335,10 @@ class DrawingCanvas(QtWidgets.QWidget):
                 avg_velocity + 1.0 * std_dev
             )
             for i in range(1, len(velocities) - 1):
-                if (velocities[i] > velocities[i-1] and
-                    velocities[i] > velocities[i+1] and
-                    velocities[i] > v_threshold):
-                    print( f"[INFO]: Rapid velocity change detected: {velocities[i]} (threshold: {v_threshold})")
+                if (velocities[i] > velocities[i - 1] and
+                        velocities[i] > velocities[i + 1] and
+                        velocities[i] > v_threshold):
+                    print(f"[INFO]: Rapid velocity change detected: {velocities[i]} (threshold: {v_threshold})")
                     rapid_velocity_changes += 1
 
         # Upraszczanie linii algorytmem Douglasa-Peuckera do detekcji zmian kierunku
@@ -368,17 +369,17 @@ class DrawingCanvas(QtWidgets.QWidget):
                     diff = abs(math.degrees(current_angle - last_angle))
                     if diff > 180:
                         diff = 360 - diff
-                    
+
                     # Zliczanie ogólnych zmian kierunku
                     if diff > ANGLE_THRESHOLD:
                         print(f"[INFO]: Direction change detected, angle: {diff}")
                         direction_changes += 1
-                    
+
                     # Zliczanie nawrotów (specyficzne dla cieniowania/szorowania)
                     if diff > REVERSAL_THRESHOLD:
                         print(f"[INFO]: Directional reversal detected, angle: {diff}")
                         directional_reversals += 1
-                        
+
                 last_angle = current_angle
 
         # Pole powierzchni rysunku (z uwzględnieniem grubości pędzla jako paddingu)
@@ -445,9 +446,9 @@ class DrawingCanvas(QtWidgets.QWidget):
             # dystansu > 3 * grubość pędzla (eliminuje fałszywe alarmy przy grubym pędzlu)
             dx = mapped_pos.x() - self.last_point.x()
             dy = mapped_pos.y() - self.last_point.y()
-            segment_dist = (dx**2 + dy**2)**0.5
+            segment_dist = (dx ** 2 + dy ** 2) ** 0.5
             self._stroke_dist_acc += segment_dist
-            
+
             pos_tuple = (mapped_pos.x(), mapped_pos.y())
             if pos_tuple in self._pixel_last_dist:
                 last_d = self._pixel_last_dist[pos_tuple]
@@ -455,8 +456,9 @@ class DrawingCanvas(QtWidgets.QWidget):
                     self._current_stroke_overdraw_count += 1
                     # Zapisywanie nadrysowania w komórce
                     cx, cy = mapped_pos.x() // self._grid_size, mapped_pos.y() // self._grid_size
-                    self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy), 0) + 1
-            
+                    self._current_stroke_overdraw_cells[(cx, cy)] = self._current_stroke_overdraw_cells.get((cx, cy),
+                                                                                                            0) + 1
+
             self._pixel_last_dist[pos_tuple] = self._stroke_dist_acc
 
             self._current_stroke_total_count += 1
