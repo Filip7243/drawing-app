@@ -4,6 +4,7 @@ import json
 import math
 import time
 import traceback
+import pandas as pd
 from pupil_labs.realtime_api.simple import discover_one_device
 from dataclasses import dataclass, asdict, field
 from datetime import datetime, timedelta
@@ -148,6 +149,7 @@ class TestMetrics:
         self._test_start: float | None = None
         self._test_start_unix: float | None = None
         self._test_end: float | None = None
+        self._test_end_ts: float | None = None
         self._current_drawing_start: float | None = None
         self._current_drawing_start_ts: float | None = None
         self._current_first_stroke: float | None = None
@@ -180,6 +182,7 @@ class TestMetrics:
         self._current_display_info: dict | None = None
         self._current_reference_path: str | None = None
         self._pupil_device = None
+        self._clock_offset_ns = 0
 
     def connect_pupil(self):
         """Metoda do łączenia się z urządzeniem Pupil Invisible."""
@@ -188,10 +191,49 @@ class TestMetrics:
             self._pupil_device = discover_one_device(max_search_duration_seconds=10)
             if self._pupil_device:
                 print(f"Connected to Pupil device: {self._pupil_device}")
+                # Estimate clock offset (only needs to be done once)
+                try:
+                    estimate = self._pupil_device.estimate_time_offset()
+                    self._clock_offset_ns = round(estimate.time_offset_ms.mean * 1_000_000)
+                    print(f"Clock offset: {self._clock_offset_ns:_d} ns")
+                except Exception as e:
+                    print(f"Failed to estimate clock offset: {e}")
+                    self._clock_offset_ns = 0
             else:
                 print("No Pupil device found.")
         except Exception as e:
             print(f"Error connecting to Pupil device: {e}")
+
+    def disconnect_pupil(self):
+        """Metoda do rozłączania się z urządzeniem Pupil Invisible."""
+        if self._pupil_device:
+            # Jeśli nagrywanie trwa (test się zaczął, ale nie skończył), spróbuj je zatrzymać
+            if self._test_start is not None and self._test_end is None:
+                try:
+                    print("Test was in progress, stopping Pupil recording before disconnect...")
+                    self._pupil_device.recording_stop_and_save()
+                except Exception as e:
+                    print(f"Failed to stop Pupil recording during disconnect: {e}")
+
+            print("Disconnecting from Pupil device...")
+            try:
+                # Jeśli urządzenie ma metodę close, wywołujemy ją (zależy od wersji API)
+                if hasattr(self._pupil_device, 'close'):
+                    self._pupil_device.close()
+                self._pupil_device = None
+            except Exception as e:
+                print(f"Error while disconnecting Pupil device: {e}")
+
+    def _send_pupil_event(self, event_name: str):
+        """Pomocnicza metoda do wysyłania eventów z poprawnym timestampem (clock offset)."""
+        if self._pupil_device:
+            try:
+                current_time_ns_in_client_clock = time.time_ns()
+                current_time_ns_in_companion_clock = current_time_ns_in_client_clock - self._clock_offset_ns
+                self._pupil_device.send_event(event_name, event_timestamp_unix_ns=current_time_ns_in_companion_clock)
+                print(f"Sent Pupil event: {event_name} (corrected ts: {current_time_ns_in_companion_clock})")
+            except Exception as e:
+                print(f"Failed to send Pupil event {event_name}: {e}")
 
     @property
     def session_dir(self) -> Path:
@@ -218,8 +260,7 @@ class TestMetrics:
             try:
                 self._pupil_device.recording_start()
                 print("Pupil recording started.")
-                self._pupil_device.send_event("recording_start", event_timestamp_unix_ns=int(time.time() * 1e9))
-                print("Sent Pupil event: recording_start")
+                self._send_pupil_event("recording_start")
             except Exception as e:
                 print(f"Failed to start Pupil recording or send event: {e}")
 
@@ -266,11 +307,112 @@ class TestMetrics:
 
             # zapisujemy do JSON
             (self.session_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+            
+            # Generujemy raport Excel
+            try:
+                gen_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+                self.generate_excel_report(summary, self.session_dir / f"raport_koncowy_{gen_date}.xlsx")
+            except Exception as e:
+                print(f"Failed to generate Excel report: {e}")
+                traceback.print_exc()
+
             return summary
         except Exception as e:
             print(f"Error in end_test: {e}")
             traceback.print_exc()
             raise e
+
+    @staticmethod
+    def generate_excel_report(summary: dict[str, Any], output_path: Path):
+        """
+        Generuje raport Excel na podstawie danych z badania.
+        """
+        drawings = summary.get("drawings", [])
+        if not drawings:
+            print("Brak rysunków do wygenerowania raportu.")
+            return
+
+        total_duration = summary.get("total_duration_s", 0)
+        avg_time_per_drawing = total_duration / len(drawings) if drawings else 0
+
+        # Dane do tabeli głównej (per rysunek)
+        rows = []
+        for d in drawings:
+            # Interpretacja strategii
+            strat = d.get("strategy_metrics", {})
+            
+            # 1. Start od ogółu vs szczegółu
+            expansion = strat.get("initial_expansion_ratio", 0)
+            if expansion > 0.65:
+                expansion_str = "Start od ogółu"
+            elif expansion < 0.35:
+                expansion_str = "Start od szczegółu"
+            else:
+                expansion_str = "Mieszana"
+
+            # 2. Dystans między kreskami
+            dist = strat.get("mean_inter_stroke_distance", 0)
+            if dist < 40:
+                dist_str = "Mało (lokalne)"
+            elif dist > 120:
+                dist_str = "Dużo (skokowe)"
+            else:
+                dist_str = "Średnio"
+
+            # 3. Kierunek
+            vector = strat.get("drawing_direction_vector", {"dx": 0, "dy": 0})
+            dx, dy = vector.get("dx", 0), vector.get("dy", 0)
+            dirs = []
+            if abs(dx) > 20:
+                dirs.append("Prawo" if dx > 0 else "Lewo")
+            if abs(dy) > 20:
+                dirs.append("Dół" if dy > 0 else "Góra")
+            dir_str = " -> ".join(dirs) if dirs else "Brak dominującego"
+
+            strategy_desc = f"{expansion_str}, Przeskoki: {dist_str}, Kierunek: {dir_str}"
+
+            row = {
+                "Index": d.get("index"),
+                "Czas całkowity [s]": round(d.get("duration_s", 0), 2),
+                "Czas rysowania [s]": round(d.get("actual_drawing_duration_s", 0), 2),
+                "Ilość przerw": d.get("interruptions_count", 0),
+                "Cofnij / Ponów (undo/redo)": f"{d.get('undo_count', 0)} / {d.get('redo_count', 0)}",
+                "Średni czas przerw [s]": round(d.get("avg_interruption_duration_s", 0) or 0, 2),
+                "Śr. prędkość [px/s]": round(d.get("avg_velocity", 0), 2),
+                "Max prędkość [px/s]": round(d.get("max_velocity", 0), 2),
+                "Ratio prędkości": round(d.get("velocity_ratio", 0), 3),
+                "Poprawki (overdrawing score)": round(d.get("overdrawing_score", 0), 4),
+                "Cieniowanie / Szorowanie": "Tak" if d.get("shading_detected", False) else "Nie",
+                "Powroty (revisits)": d.get("revisits_count", 0),
+                "Strategia (interpretacja)": strategy_desc,
+                "Liczba kresek": strat.get("num_strokes", 0)
+            }
+            rows.append(row)
+
+        df = pd.DataFrame(rows)
+
+
+        # Zapis do Excela
+        with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+            # Arkusz ze statystykami
+            df.to_excel(writer, index=False, sheet_name='Statystyki rysunków', startrow=4)
+            
+            workbook = writer.book
+            sheet = writer.sheets['Statystyki rysunków']
+            
+            # Nagłówki na górze
+            sheet['A1'] = "RAPORT Z TESTU BVRT"
+            sheet['A2'] = f"Całkowity czas trwania testu: {round(total_duration, 2)} s"
+            sheet['A3'] = f"Średni czas na jeden rysunek: {round(avg_time_per_drawing, 2)} s"
+            
+
+            # Formatowanie szerokości kolumn
+            from openpyxl.utils import get_column_letter
+            for i, col in enumerate(df.columns, start=1):
+                column_letter = get_column_letter(i)
+                sheet.column_dimensions[column_letter].width = 20
+
+        print(f"Raport Excel zapisany w: {output_path}")
 
     def save_display_info(self, display_info: dict | None, reference_path: str | None = None):
         """
@@ -315,11 +457,7 @@ class TestMetrics:
 
         if self._pupil_device:
             event_name = f"drawing_{self._drawing_counter}_started"
-            try:
-                self._pupil_device.send_event(event_name, event_timestamp_unix_ns=int(time.time() * 1e9))
-                print(f"Sent Pupil event: {event_name}")
-            except Exception as e:
-                print(f"Failed to send Pupil event {event_name}: {e}")
+            self._send_pupil_event(event_name)
 
     def record_first_stroke(self):
         """
@@ -332,11 +470,7 @@ class TestMetrics:
 
             if self._pupil_device:
                 event_name = f"first_stroke_drawing_{self._drawing_counter}"
-                try:
-                    self._pupil_device.send_event(event_name, event_timestamp_unix_ns=int(time.time() * 1e9))
-                    print(f"Sent Pupil event: {event_name}")
-                except Exception as e:
-                    print(f"Failed to send Pupil event {event_name}: {e}")
+                self._send_pupil_event(event_name)
 
     def record_stroke_start(self):
         """
@@ -556,11 +690,7 @@ class TestMetrics:
         
         if self._pupil_device:
             event_name = f"drawing_{index}_ended"
-            try:
-                self._pupil_device.send_event(event_name, event_timestamp_unix_ns=int(time.time() * 1e9))
-                print(f"Sent Pupil event: {event_name}")
-            except Exception as e:
-                print(f"Failed to send Pupil event {event_name}: {e}")
+            self._send_pupil_event(event_name)
 
         ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 

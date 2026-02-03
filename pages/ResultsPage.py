@@ -9,13 +9,14 @@ from components.StyledLegend import StyledLegend
 
 
 class ResultsPage(QWidget):
-    def __init__(self, parent=None, examine_id=None, legend_items=None, patient_id=None, summary=None):
+    def __init__(self, parent=None, examine_id=None, legend_items=None, patient_id=None, summary=None, metrics=None):
         super().__init__(parent)
 
         self.background = QPixmap("assets:img/background.png")
         self.scaled_background = self.background
         self.setWindowTitle("Results Page")
         self.summary = summary
+        self._metrics = metrics
 
         # -----------------------------
         # Główny layout strony
@@ -46,7 +47,10 @@ class ResultsPage(QWidget):
         content_layout.addWidget(table_widget)
 
         # PatientSummary
-        patient_widget = PatientSummary(patient_id=patient_id)
+        patient_widget = PatientSummary(
+            patient_id=patient_id,
+            metrics=self._metrics
+        )
         patient_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         content_layout.addWidget(patient_widget)
 

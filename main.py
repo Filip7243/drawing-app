@@ -200,6 +200,9 @@ def main():
     metrics = TestMetrics()
     metrics.connect_pupil()
 
+    # Rozłącz Pupil przy zamykaniu aplikacji (np. krzyżykiem)
+    app.aboutToQuit.connect(metrics.disconnect_pupil)
+
     controller = FlowController()
     controller.set_loop(True)
     controller.set_sequence(TUTORIAL_SEQUENCE)
@@ -223,7 +226,12 @@ def main():
 
             meta = main_page.main_form.get_test_metadata()
             print("RESULTS PAGE WITH ID: ", meta.patient_id)
-            results_page = ResultsPage(examine_id=meta.examine_id, patient_id=meta.patient_id, summary=summary)
+            results_page = ResultsPage(
+                examine_id=meta.examine_id, 
+                patient_id=meta.patient_id, 
+                summary=summary,
+                metrics=metrics
+            )
             controller.stack.addWidget(results_page)
             controller.stack.setCurrentWidget(results_page)
 

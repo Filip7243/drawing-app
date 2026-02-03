@@ -2,7 +2,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QHBoxLayout,
-    QFrame, QPushButton, QSpacerItem, QSizePolicy, QGraphicsDropShadowEffect
+    QFrame, QPushButton, QSpacerItem, QSizePolicy, QGraphicsDropShadowEffect, QApplication
 )
 
 from components.StyledButton import StyledButton
@@ -33,9 +33,10 @@ def _create_info_row(label_text: str, value_text: str) -> QHBoxLayout:
 class PatientSummary(QWidget):
     patientRepository = PatientRepository()
 
-    def __init__(self, patient_id=None, parent=None):
+    def __init__(self, patient_id=None, metrics=None, parent=None):
         super().__init__(parent)
 
+        self._metrics = metrics
         patient: PatientSummaryDTO = self.patientRepository.get_patient_summary_by_id(patient_id=patient_id)
 
         # Dane przykładowe jeśli brak
@@ -117,6 +118,7 @@ class PatientSummary(QWidget):
             end_btn = StyledButton("KONIEC", color="#d9534f", font_color="white")
             end_btn.setFixedWidth(200)
             end_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            end_btn.clicked.connect(self.on_end_clicked)
 
             btn_layout = QHBoxLayout()
             btn_layout.addStretch()
@@ -125,12 +127,18 @@ class PatientSummary(QWidget):
 
             frame_layout.addLayout(btn_layout)
             main_layout.addWidget(frame)
-            print("ESSSSA!")
 
         except Exception as e:
             import traceback
-            print("łąd w setup_ui:", e)
+            print("Błąd w setup_ui:", e)
             print(traceback.format_exc())
 
     def on_show_clicked(self):
         print("Kliknięto 'Pokaż' w sekcji Uwagi (popup w przyszłości)")
+
+    def on_end_clicked(self):
+        """Obsługa kliknięcia przycisku KONIEC - rozłączenie z Pupil i zamknięcie aplikacji."""
+        print("Kliknięto 'KONIEC'. Zamykanie aplikacji...")
+        if self._metrics:
+            self._metrics.disconnect_pupil()
+        QApplication.instance().quit()
