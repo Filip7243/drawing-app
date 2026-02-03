@@ -1,0 +1,8 @@
+recording.begin
+drawing_1_started
+first_stroke_drawing_1
+drawing_1_ended
+drawing_2_started
+first_stroke_drawing_2
+drawing_2_ended
+recording.end

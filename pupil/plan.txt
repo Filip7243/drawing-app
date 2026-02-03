@@ -1,0 +1,105 @@
+Dobra, masz trzy podejścia do ustawiania czasu eventów i pytasz, które najlepiej wybrać, żeby potem dokładnie zsynchronizować:
+
+gaze_timestamp (w sekundach od startu nagrania w Pupil),
+
+z eventami rysowania, które mają timestamp Unixowy z Twojego komputera/tabletu,
+
+i żeby potem móc precyzyjnie zmapować, gdzie użytkownik patrzył w momencie rysowania.
+
+Krótkie przypomnienie:
+
+gaze_timestamp (w summary.json) — czas relatywny do startu nagrania Pupil, czyli np. 0 = moment startu nagrania.
+
+Timestamp rysowania — czas systemowy (Unix epoch, np. time.time()), tzn. od 1970-01-01 w sekundach lub ms.
+
+Omówienie podejść
+1. device.send_event("test event; timestamped at arrival")
+
+Event jest automatycznie timestampowany w momencie przyjęcia na urządzeniu Pupil (czyli jego własny clock).
+
+Plus: łatwe, szybkie.
+
+Minus: nie masz kontroli nad czasem, event będzie w czasie urządzenia, ale Twój komputer/tablet ma swój czas (Unix).
+
+Skutki: eventy i gaze mają ten sam czas (bo Pupil), ale Twój rysunek ma inną skalę → trzeba będzie potem synchronizować na podstawie offsetu.
+
+2. device.send_event(..., event_timestamp_unix_ns=time.time_ns())
+
+Wysyłasz event z czasem Unixowym (systemowym zegarem klienta).
+
+Plus: event ma czas z Twojego komputera.
+
+Minus: Pupil działa na swoim własnym clocku, więc w nagraniu event będzie miał czas z klienta, ale gaze ma czas urządzenia → różne systemy czasowe → trudniej później synchronizować gaze i eventy.
+
+Może powstać rozjazd między eventami a gaze.
+
+3. device.estimate_time_offset() + korekta offsetu
+
+Estymujesz offset czasowy między zegarem urządzenia Pupil a zegarem Twojego komputera.
+
+Przesuwasz (korygujesz) timestamp eventu, żeby był w systemie czasowym Pupil.
+
+Plus: eventy i gaze są w tej samej osi czasu (urządzenia Pupil).
+
+Minus: wymaga jednorazowego wyliczenia offsetu, ale potem masz precyzyjną synchronizację.
+
+Które podejście jest najlepsze dla Twojego celu?
+Masz:
+
+gaze_timestamp w czasie relatywnym do startu nagrania Pupil,
+
+timestamp rysowania w czasie Unixowym (systemowym).
+
+Idealny workflow:
+
+Osie czasu trzeba ujednolicić!
+
+Najlepiej, aby wszystkie eventy (w tym rysowania) miały timestamp w systemie czasu Pupil (czyli tak, jak gaze_timestamp).
+
+Żeby to osiągnąć, musisz:
+
+Wykorzystać podejście 3:
+
+wyliczyć offset między czasem Twojego komputera (Unix time) a czasem urządzenia Pupil,
+
+skorygować timestamp eventów rysowania, by były w osi czasu Pupil.
+
+Wtedy:
+
+corrected_timestamp_event = timestamp_rysowania_unix - clock_offset
+(lub jeśli offset jest inaczej liczony, odpowiednia korekta)
+
+Masz wtedy eventy i gaze w tej samej osi czasu — możesz je bezpośrednio porównywać, synchronizować i analizować.
+
+Jeśli użyjesz podejścia 1
+
+Eventy mają czas urządzenia (Pupil), gaze też.
+
+Ale rysowanie masz w Unixowym — musisz później ręcznie wyliczać offset między Unix time a czasem urządzenia Pupil (co jest trudniejsze).
+
+Jeśli użyjesz podejścia 2
+
+Eventy mają czas Unixowy.
+
+Gaze ma czas urządzenia Pupil.
+
+Trudno będzie synchronizować bez offsetu, bo zegary się różnią.
+
+Podsumowanie
+Podejście	Synchronizacja eventów i gaze względem rysowania	Wygoda	Rekomendacja
+1. Timestamp na urządzeniu Pupil	Trzeba później ręcznie synchronizować Unix time z czasem Pupil	Średnia	OK, ale wymaga więcej pracy
+2. Timestamp Unixowy bez offsetu	Czas eventów i gaze różny — ciężka synchronizacja	Niska	Nie polecam
+3. Timestamp Unixowy z korektą offsetu	Eventy skorygowane do czasu Pupil — łatwa synchronizacja z gaze	Najlepsza	Najlepszy wybór
+Dodatkowo
+
+device.estimate_time_offset() jest funkcją, która pozwala raz oszacować różnicę zegarów i potem ją używać do korekty.
+
+W praktyce dla rzetelnej analizy eye-tracking + akcje użytkownika (rysowanie) zawsze stosuj synchronizację zegarów.
+
+Jeśli chcesz, mogę pomóc:
+
+napisać kod, który zrobi tę synchronizację i korektę eventów,
+
+wyjaśnić, jak później łączyć timestampy w analizie.
+
+Podsumowując: wybieraj metodę nr 3, bo zapewni Ci spójny czas eventów i gaze, co jest kluczowe do dokładnej analizy spojrzenia podczas rysowania.
