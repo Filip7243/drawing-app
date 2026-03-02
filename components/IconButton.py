@@ -18,12 +18,13 @@ def darken_color(hex_color, factor=0.85):
 
 
 class IconButton(QPushButton):
-    def __init__(self, icon_path, color="#89c057", icon_size=24, transform=None):
+    def __init__(self, icon_path, color="#89c057", icon_size=24, transform=None, padding=6):
         """
         :param icon_path: Ścieżka do pliku ikony (np. "icons/back.png")
         :param color: Kolor tła przycisku
         :param icon_size: Rozmiar ikony w pikselach
         :param transform: Opcjonalna transformacja ikony (QTransform)
+        :param padding: Padding wokół ikony
         """
         super().__init__()
 
@@ -44,7 +45,7 @@ class IconButton(QPushButton):
             QPushButton {{
                 background-color: {color};
                 border-radius: 4px;
-                padding: 6px;
+                padding: {padding}px;
                 border: 2px solid #e0c77f;
             }}
             QPushButton:hover {{
@@ -69,5 +70,5 @@ class IconButton(QPushButton):
         self.setGraphicsEffect(shadow)
 
         # Domyślny rozmiar przycisku (kwadratowy)
-        button_size = icon_size + 16  # padding 8px z każdej strony
+        button_size = icon_size + 2 * padding + 4 # 4 to obramowanie (2px z każdej strony)
         self.setFixedSize(button_size, button_size)

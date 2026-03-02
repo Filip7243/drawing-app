@@ -1,5 +1,5 @@
 from PyQt6.QtCore import Qt, QTimer, QDir, QUrl, pyqtSignal
-from PyQt6.QtGui import QPixmap, QPainter
+from PyQt6.QtGui import QPixmap, QPainter, QPalette, QColor
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 
@@ -17,6 +17,12 @@ class RememberFigurePage(QWidget):
                  is_tutorial=False):
         super().__init__(parent)
         self.setWindowTitle("Remember Figure Page")
+
+        # Ustawienie białego tła
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(QPalette.ColorRole.Window, QColor("white"))
+        self.setPalette(palette)
 
         self.bg_path = bg_path  # Zapisujemy ścieżkę
         self.background = QPixmap(bg_path)

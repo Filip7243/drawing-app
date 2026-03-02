@@ -31,7 +31,7 @@ class DrawingPage(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         # Z tego komponentu jest pobierany obraz
-        self.april_tags = AprilTagsComponent(num_tags=6, show_canvas=True)
+        self.april_tags = AprilTagsComponent(num_tags=6, show_canvas=True, show_frame=True)
         self.april_tags.canvas.firstStroke.connect(self.firstStroke.emit)
         self.april_tags.canvas.strokeStarted.connect(self.strokeStarted.emit)
         self.april_tags.canvas.strokeFinished.connect(self.strokeFinished.emit)
@@ -40,39 +40,28 @@ class DrawingPage(QWidget):
         self.april_tags.canvas.redoClicked.connect(self.redoClicked.emit)
         main_layout.addWidget(self.april_tags)
 
-        button_container = QWidget()
-        button_container.setStyleSheet("background-color: white;")
-        button_layout = QHBoxLayout(button_container)
-        button_layout.setContentsMargins(20, 0, 20, 0)
-        button_layout.setSpacing(20)
-
+        # Przyciski przeniesione na AprilTagsComponent (na czarną ramkę)
         # Lewa strona - undo/redo
-        undo_redo_layout = QHBoxLayout()
-        self.undo_button = IconButton("assets/icons/arrow-left.png", color="#FFFFFF")
+        self.undo_button = IconButton("assets/icons/arrow-left.png", color="#FFFFFF", icon_size=72, padding=14)
         self.undo_button.setToolTip("Cofnij")
         self.undo_button.clicked.connect(self.april_tags.canvas.undo)
         
         # Dla Redo użyjemy tej samej ikony ale odbitej.
         redo_transform = QTransform().scale(-1, 1)
-        self.redo_button = IconButton("assets/icons/arrow-left.png", color="#FFFFFF", transform=redo_transform)
+        self.redo_button = IconButton("assets/icons/arrow-left.png", color="#FFFFFF",
+                                      transform=redo_transform, icon_size=72, padding=14)
         self.redo_button.setToolTip("Ponów")
         self.redo_button.clicked.connect(self.april_tags.canvas.redo)
-        
-        undo_redo_layout.addWidget(self.undo_button)
-        undo_redo_layout.addWidget(self.redo_button)
-        
-        button_layout.addLayout(undo_redo_layout)
 
-        done_button = StyledButton("Dalej", color="#000000", font_color="#FFFFFF")
-        done_button.setFixedWidth(500)
+        # Przycisk Dalej
+        done_button = StyledButton("DALEJ", color="#FFFFFF", font_color="#000000", font_size=22)
         done_button.clicked.connect(self.on_done_btn_click)
-        button_layout.addStretch()
-        button_layout.addWidget(done_button)
-        button_layout.addStretch()
+        
+        # Dodajemy do ramki w AprilTagsComponent (kolejność ma znaczenie dla pozycjonowania w resizeEvent)
+        self.april_tags.add_widget_to_frame(self.undo_button)
+        self.april_tags.add_widget_to_frame(self.redo_button)
+        self.april_tags.add_widget_to_frame(done_button)
 
-        button_container.setFixedHeight(done_button.sizeHint().height())
-        print(f'btn: {button_container.sizeHint().height()}')
-        main_layout.addWidget(button_container)
         self.setLayout(main_layout)
 
         self.player = None

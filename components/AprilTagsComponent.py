@@ -4,11 +4,28 @@ from components.DrawingCanvas import DrawingCanvas
 
 
 class AprilTagsComponent(QtWidgets.QWidget):
-    def __init__(self, parent=None, num_tags=4, show_canvas=False):
+    def __init__(self, parent=None, num_tags=4, show_canvas=False, show_frame=False):
         super().__init__(parent)
 
         self.num_tags = num_tags
         self.show_canvas = show_canvas
+        self.show_frame = show_frame
+
+        # Lista na dodatkowe widgety do paska (np. przyciski)
+        self._frame_widgets = []
+
+        if show_frame:
+            # Lista QLabel dla ramki (czarne paski między tagami)
+            # Tworzymy 4 paski: góra, dół, lewo, prawo
+            self.frame_bars = [QtWidgets.QLabel(self) for _ in range(4)]
+            for bar in self.frame_bars:
+                bar.setAutoFillBackground(True)
+                palette = bar.palette()
+                palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor("black"))
+                bar.setPalette(palette)
+                bar.show()
+        else:
+            self.frame_bars = []
 
         # Lista QLabel dla tagów
         self.tags = [QtWidgets.QLabel(self) for _ in range(num_tags)]
@@ -26,10 +43,19 @@ class AprilTagsComponent(QtWidgets.QWidget):
             self.canvas.show()
             self.canvas.lower()
 
+    def add_widget_to_frame(self, widget):
+        """Dodaje widget do komponentu, który będzie pozycjonowany na ramce."""
+        if not self.show_frame:
+            return
+        widget.setParent(self)
+        self._frame_widgets.append(widget)
+        widget.show()
+        widget.raise_()
+
     def resizeEvent(self, event: QtGui.QResizeEvent):
-        super().resizeEvent(event)
-        w, h = self.width(), self.height()
-        tag_size = int(min(w, h) // self.num_tags * 1.4)
+        # super().resizeEvent(event)  # Możemy wywołać, ale zazwyczaj niepotrzebne dla QWidget
+        w, h = event.size().width(), event.size().height()
+        tag_size = int(min(w, h) // self.num_tags)
 
         # 4 rogi
         self.tags[0].setGeometry(0, 0, tag_size, tag_size)  # lewy górny
@@ -43,13 +69,62 @@ class AprilTagsComponent(QtWidgets.QWidget):
             self.tags[5].setGeometry((w - tag_size) // 2, h - tag_size, tag_size, tag_size)  # środek dół
 
         if self.show_canvas:
+            # DrawingCanvas zawsze na cały obszar
             self.canvas.setGeometry(0, 0, w, h)
+            
+            if self.show_frame:
+                # Pozycjonujemy czarne paski ramki
+                # 0: góra, 1: dół, 2: lewo, 3: prawo
+                self.frame_bars[0].setGeometry(tag_size, 0, w - 2 * tag_size, tag_size)
+                self.frame_bars[1].setGeometry(tag_size, h - tag_size, w - 2 * tag_size, tag_size)
+                self.frame_bars[2].setGeometry(0, tag_size, tag_size, h - 2 * tag_size)
+                self.frame_bars[3].setGeometry(w - tag_size, tag_size, tag_size, h - 2 * tag_size)
+
+                for bar in self.frame_bars:
+                    bar.raise_()
+
+                # Pozycjonowanie przycisków na dolnej ramce (tylko gdy num_tags == 6)
+                if self.num_tags == 6 and len(self._frame_widgets) >= 3:
+                    # Zakładamy kolejność: undo, redo, done
+                    undo_btn = self._frame_widgets[0]
+                    redo_btn = self._frame_widgets[1]
+                    done_btn = self._frame_widgets[2]
+
+                    # Pozycje April Tagów na dole:
+                    # tags[2] (lewy), tags[5] (środek), tags[3] (prawy)
+                    # frame_bars[1] to cały dolny pasek od tag_size do w - tag_size
+
+                    # Pomiędzy 1 a 2 tagiem (lewy i środkowy)
+                    # Lewy tag kończy się na tag_size, środkowy zaczyna się na (w - tag_size) // 2
+                    space1_start = tag_size
+                    space1_end = (w - tag_size) // 2
+                    space1_center = (space1_start + space1_end) // 2
+                    
+                    undo_btn.adjustSize()
+                    redo_btn.adjustSize()
+                    
+                    # Umieszczamy strzałki obok siebie w tym miejscu
+                    btn_spacing = 10
+                    total_arrows_w = undo_btn.width() + redo_btn.width() + btn_spacing
+                    
+                    undo_btn.move(space1_center - total_arrows_w // 2, h - tag_size + (tag_size - undo_btn.height()) // 2)
+                    redo_btn.move(undo_btn.x() + undo_btn.width() + btn_spacing, h - tag_size + (tag_size - redo_btn.height()) // 2)
+                    
+                    # Pomiędzy 2 a 3 tagiem (środkowy i prawy)
+                    # Środkowy tag kończy się na (w - tag_size) // 2 + tag_size
+                    # Prawy tag zaczyna się na w - tag_size
+                    space2_start = (w - tag_size) // 2 + tag_size
+                    space2_end = w - tag_size
+                    space2_center = (space2_start + space2_end) // 2
+                    
+                    done_btn.setFixedHeight(max(10, tag_size - 10))
+                    done_btn.setFixedWidth(max(10, min(space2_end - space2_start - 20, 500)))
+                    done_btn.adjustSize()
+                    done_btn.move(space2_center - done_btn.width() // 2, h - tag_size + (tag_size - done_btn.height()) // 2)
+
+                    for widget in self._frame_widgets:
+                        widget.raise_()
+
             # Tagi na wierzchu
             for tag in self.tags:
                 tag.raise_()
-            # KOD KTORY RYSUJE CANVAS POZA APRIL TAGS
-            # left = tag_size
-            # top = tag_size
-            # right = w - tag_size
-            # bottom = h - tag_size
-            # self.canvas.setGeometry(left, top, right - left, bottom - top)
