@@ -80,10 +80,20 @@ class FlowController(QObject):
         self._idx += 1
         # Jeśli jesteśmy w ostatnim widoku sekwencji wywołujemy funkcję on_complete
         if self._idx >= len(self._factories):
+            print(f"FlowController: sequence end reached. idx={self._idx}")
             if self._on_complete is not None:
                 try:
+                    print("FlowController: calling on_complete")
                     self._on_complete()
                 finally:
+                    # Nawet po on_complete usuwamy ostatni widget sekwencji
+                    if prev is not None:
+                        try:
+                            print(f"FlowController: removing last sequence widget: {prev}")
+                            self._stack.removeWidget(prev)
+                            prev.deleteLater()
+                        except Exception as e:
+                            print(f'Błąd podczas usuwania ostatniego widoku: {e}')
                     return
 
             # Jeśli jesteśmy w trybie loop, restartujemy sekwencję
@@ -182,11 +192,12 @@ class FlowController(QObject):
         # Bezpieczne usuwanie poprzedniego widoku po przejściu do kolejnego, tak żeby przejście było płynne.
         if prev is not None:
             try:
+                print(f"FlowController: removing previous widget: {prev}")
                 self._stack.removeWidget(prev)
+                prev.deleteLater()
             except Exception as e:
                 print(f'Błąd podczas usuwania poprzedniego widoku: {e}')
                 pass
-            prev.deleteLater()
 
     @property
     def stack(self):

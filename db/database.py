@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -13,7 +11,8 @@ class DatabaseManager:
         self.password = password
         self.conn = None
         self._connect()
-        # self._create_table()
+        if not self._is_migration_finished():
+            self._run_init_sql()
 
     def _connect(self):
         try:
@@ -31,63 +30,27 @@ class DatabaseManager:
             print(f"Błąd połączenia z bazą: {e}")
             raise
 
-    def _create_table(self):
-        query = """
-        CREATE TYPE school AS ENUM ('PODSTAWOWE', 'SREDNIE', 'WYZSZE');
-        CREATE TYPE school_details AS ENUM ('KLASA1', 'KLASA2', 'KLASA3', 'KLASA4',
-         'KLASA5', 'KLASA6', 'KLASA7', 'KLASA8', 'TECHNIKUM', 'LICEUM', 'LICENCJAT', 'MAGISTER', 'DOKTORAT');
-        CREATE TYPE mode AS ENUM ('NORMALNY', 'UPROSZCZONY');
-        CREATE TYPE hand AS ENUM ('PRAWA', 'LEWA');
-        CREATE TYPE gender AS ENUM ('MEZCZYZNA', 'KOBIETA');
-        
-        CREATE TABLE IF NOT EXISTS examine_records (
-            id SERIAL PRIMARY KEY,
-            first_name VARCHAR(100),
-            last_name VARCHAR(100),
-            date_of_birth DATE,
-            gender gender,
-            dominant_hand hand,
-            eye_impairment BOOLEAN,
-            eye_description TEXT,
-            education school,
-            education_details school_details,
-            additional_info TEXT,
-            examine_reason TEXT,
-            mode mode,
-            created_at TIMESTAMP DEFAULT NOW()
-        );
-        
-        CREATE INDEX IF NOT EXISTS idx_examine_records_multi
-            ON examine_records(first_name, last_name, date_of_birth, dominant_hand);
-        """
-        with self.conn.cursor() as cur:
-            cur.execute(query)
-            print("Tabela `examine_records` gotowa")
+    def _is_migration_finished(self):
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("SELECT finished FROM migration WHERE id = 1;")
+                row = cur.fetchone()
+                return row is not None and row['finished']
+        except Exception as e:
+            print(f"Error: Could not retrieve status of migration from database: {e}")
+            return False
 
-    def insert_record(self, data: dict):
-        query = """
-                INSERT INTO examine_records (first_name, last_name, date_of_birth, gender, dominant_hand,
-                                             eye_impairment, eye_description, education, education_details,
-                                             additional_info, examine_reason, mode, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s); \
-                """
-        with self.conn.cursor() as cur:
-            cur.execute(query, (
-                data.get("first_name"),
-                data.get("last_name"),
-                data.get("date_of_birth").strftime("%Y-%m-%d"),
-                data.get("gender"),
-                data.get("dominant_hand"),
-                data.get("eye_impairment"),
-                data.get("eye_description"),
-                data.get("education"),
-                data.get("education_details"),
-                data.get("additional_info"),
-                data.get("examine_reason"),
-                data.get("mode"),
-                datetime.now()
-            ))
-        print("Wpis zapisany do bazy")
+    def _run_init_sql(self):
+        try:
+            import os
+            init_sql_path = os.path.join(os.path.dirname(__file__), "init.sql")
+            with open(init_sql_path, "r", encoding="utf-8") as f:
+                sql = f.read()
+            with self.conn.cursor() as cur:
+                cur.execute(sql)
+                print("Migracja z pliku init.sql wykonana pomyślnie")
+        except Exception as e:
+            print(f"Błąd podczas wykonywania migracji: {e}")
 
     def close(self):
         if self.conn:

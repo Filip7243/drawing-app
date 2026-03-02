@@ -45,7 +45,7 @@ class PatientSummary(QWidget):
             "plec": patient.gender,
             "wiek": f"{patient.age_years} lat, {patient.age_months} miesięcy, {patient.age_days} dni",
             "reka": patient.dominant_hand,
-            "wada": patient.eye_description,
+            "wada": patient.impairment_description,
             "uwagi": patient.comment,
             "funkcje": "W normie",
         }

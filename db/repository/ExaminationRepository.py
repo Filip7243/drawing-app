@@ -11,26 +11,44 @@ class ExaminationRepository:
     def insert_examination(self, exam: Examination):
         query = """
                 INSERT INTO examination (patient_id,
-                                         degree_id,
-                                         examination_mode,
                                          date,
                                          whole_time,
                                          avg_time,
-                                         comment)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                RETURNING id; \
+                                         age_years,
+                                         age_months,
+                                         age_days,
+                                         visual_impairment,
+                                         impairment_description,
+                                         education,
+                                         education_details,
+                                         comments,
+                                         examination_reason,
+                                         total_duration_s,
+                                         test_start_ts,
+                                         test_end_ts)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id;
                 """
         with self.db.conn.cursor() as cur:
             cur.execute(
                 query,
                 (
                     exam.patient_id,
-                    exam.degree_id,
-                    exam.examination_mode.value,
                     exam.date,
                     exam.whole_time,
                     exam.avg_time,
-                    exam.comment,
+                    exam.age_years,
+                    exam.age_months,
+                    exam.age_days,
+                    exam.visual_impairment,
+                    exam.impairment_description,
+                    exam.education.value if exam.education else None,
+                    exam.education_details.value if exam.education_details else None,
+                    exam.comments,
+                    exam.examination_reason,
+                    exam.total_duration_s,
+                    exam.test_start_ts,
+                    exam.test_end_ts,
                 ),
             )
             new_id = cur.fetchone()['id']
@@ -40,27 +58,45 @@ class ExaminationRepository:
     def update_examination(self, exam: Examination):
         query = """
                 UPDATE examination
-                SET patient_id       = %s,
-                    degree_id        = %s,
-                    examination_mode = %s,
-                    date             = %s,
-                    whole_time       = %s,
-                    avg_time         = %s,
-                    comment          = %s
+                SET patient_id             = %s,
+                    date                   = %s,
+                    whole_time             = %s,
+                    avg_time               = %s,
+                    age_years              = %s,
+                    age_months             = %s,
+                    age_days               = %s,
+                    visual_impairment      = %s,
+                    impairment_description = %s,
+                    education              = %s,
+                    education_details      = %s,
+                    comments               = %s,
+                    examination_reason     = %s,
+                    total_duration_s       = %s,
+                    test_start_ts          = %s,
+                    test_end_ts            = %s
                 WHERE id = %s
-                RETURNING id; \
+                RETURNING id;
                 """
         with self.db.conn.cursor() as cur:
             cur.execute(
                 query,
                 (
                     exam.patient_id,
-                    exam.degree_id,
-                    exam.examination_mode.value,
                     exam.date,
                     exam.whole_time,
                     exam.avg_time,
-                    exam.comment,
+                    exam.age_years,
+                    exam.age_months,
+                    exam.age_days,
+                    exam.visual_impairment,
+                    exam.impairment_description,
+                    exam.education.value if exam.education else None,
+                    exam.education_details.value if exam.education_details else None,
+                    exam.comments,
+                    exam.examination_reason,
+                    exam.total_duration_s,
+                    exam.test_start_ts,
+                    exam.test_end_ts,
                     exam.id,
                 ),
             )
@@ -72,14 +108,23 @@ class ExaminationRepository:
         query = """
                 SELECT id,
                        patient_id,
-                       degree_id,
-                       examination_mode,
                        date,
                        whole_time,
                        avg_time,
-                       comment
+                       age_years,
+                       age_months,
+                       age_days,
+                       visual_impairment,
+                       impairment_description,
+                       education,
+                       education_details,
+                       comments,
+                       examination_reason,
+                       total_duration_s,
+                       test_start_ts,
+                       test_end_ts
                 FROM examination
-                WHERE id = %s; \
+                WHERE id = %s;
                 """
         with self.db.conn.cursor() as cur:
             cur.execute(query, (exam_id,))
@@ -87,29 +132,46 @@ class ExaminationRepository:
             if not row:
                 return None
 
-            # konwersja wyniku na model Examination
+            from db.models import School, SchoolDetails
             return Examination(
                 id=row['id'],
                 patient_id=row['patient_id'],
-                degree_id=row['degree_id'],
-                examination_mode=row['examination_mode'],  # Mode zostanie przypisany w warstwie wyżej
                 date=row['date'],
                 whole_time=row['whole_time'],
                 avg_time=row['avg_time'],
-                comment=row['comment'],
+                age_years=row['age_years'],
+                age_months=row['age_months'],
+                age_days=row['age_days'],
+                visual_impairment=row['visual_impairment'],
+                impairment_description=row['impairment_description'],
+                education=School(row['education']) if row['education'] else None,
+                education_details=SchoolDetails(row['education_details']) if row['education_details'] else None,
+                comments=row['comments'],
+                examination_reason=row['examination_reason'],
+                total_duration_s=float(row['total_duration_s']) if row['total_duration_s'] is not None else 0.0,
+                test_start_ts=float(row['test_start_ts']) if row['test_start_ts'] is not None else 0.0,
+                test_end_ts=row['test_end_ts'],
             )
 
     def get_previous_examinations(self, patient_id) -> list[PreviousExaminationsDTO]:
         query = """
                 SELECT e.id         as id,
-                       e.comment    as comment,
+                       e.comments   as comments,
                        e.whole_time as whole_time,
                        e.avg_time   as avg_time,
-                       e.date       as date
+                       e.date       as date,
+                       f.pominiecia,
+                       f.znieksztalcenia,
+                       f.perserwacje,
+                       f.rotacje,
+                       f.przemieszczenia,
+                       f.bledy_wzglednej_wielkosci
                 FROM examination e
                          JOIN patient p ON p.id = e.patient_id
-                         LEFT JOIN failure ON e.id = failure.examine_id
-                WHERE p.id = %s \
+                         LEFT JOIN image i ON e.id = i.examine_id
+                         LEFT JOIN failure f ON i.id = f.image_id
+                WHERE p.id = %s
+                ORDER BY e.date DESC;
                 """
 
         with self.db.conn.cursor() as cur:
@@ -120,21 +182,23 @@ class ExaminationRepository:
 
             results = []
             for row in rows:
+                # Uwaga: Ten DTO jest uproszczony, w rzeczywistości błędy mogą pochodzić z wielu obrazów w jednym badaniu
+                # Na potrzeby tego repozytorium przyjmujemy zagregowane dane lub pierwszą wpadkę.
                 results.append(PreviousExaminationsDTO(
                     patient_id=patient_id,
                     examine_id=row['id'],
-                    failure_mappings=2,
-                    valid_mappings=8,
-                    avg_time=row['avg_time'],
-                    whole_time=row['whole_time'],
-                    pominiecia=0,
-                    znieksztalcenia=1,
-                    perserwacje=0,
-                    rotacje=0,
-                    przemieszczenia=0,
-                    bledy_wzglednej_wielkosci=1,
+                    failure_mappings=0,  # Przykładowa wartość, do wyliczenia jeśli potrzebne
+                    valid_mappings=0,  # Przykładowa wartość
+                    avg_time=row['avg_time'] or timedelta(0),
+                    whole_time=row['whole_time'] or timedelta(0),
+                    pominiecia=row['pominiecia'] or 0,
+                    znieksztalcenia=row['znieksztalcenia'] or 0,
+                    perserwacje=row['perserwacje'] or 0,
+                    rotacje=row['rotacje'] or 0,
+                    przemieszczenia=row['przemieszczenia'] or 0,
+                    bledy_wzglednej_wielkosci=row['bledy_wzglednej_wielkosci'] or 0,
                     result="-----",
-                    comment=row['comment'],
+                    comment=row['comments'],
                     examine_date=row['date']
                 ))
 
@@ -146,7 +210,7 @@ class ExaminationRepository:
                 SET whole_time = %s,
                     avg_time   = %s
                 WHERE id = %s
-                RETURNING id; \
+                RETURNING id;
                 """
         with self.db.conn.cursor() as cur:
             cur.execute(

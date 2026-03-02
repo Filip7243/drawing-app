@@ -1,12 +1,9 @@
-from datetime import timedelta
-
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap, QPainter, QPen, QColor
 from PyQt6.QtWidgets import (
     QWidget, QTableWidget, QTableWidgetItem,
-    QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QHeaderView, QSizePolicy, QDialog
+    QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QHeaderView, QSizePolicy, QDialog, QSlider
 )
-from PySide6.QtWidgets import QSlider
 
 from db.models import ImageTableDataSummary
 from db.service.ImageService import ImageService
@@ -20,22 +17,33 @@ class ResultTable(QWidget):
 
     def __init__(self, examine_id=None, parent=None, summary=None):
         super().__init__(parent)
+        print(f"ResultTable: __init__ started for examine_id={examine_id}")
         self.table = QTableWidget(ROW_NUM, COL_NUM)
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.table)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
         self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        print("GETTING DATA IMAGE:")
-        self.data = self.imageService.get_images_table_summary_by_examine_id(examine_id) or []
-        print("DATA FOUND: ", self.data)
+        try:
+            self.data = self.imageService.get_images_table_summary_by_examine_id(examine_id) or []
+            print(f"ResultTable: data count={len(self.data)}")
+            print(f"ResultTable: DATA FOUND: {self.data}")
+        except Exception as e:
+            print(f"ResultTable: Error fetching data: {e}")
+            import traceback
+            print(traceback.format_exc())
+            self.data = []
+
         self.summary = summary
         self._setup_ui()
         if self.data:
             try:
                 self.set_data(self.data)
+                print("ResultTable: set_data finished")
             except Exception as e:
-                print("ex", e)
+                print(f"ResultTable: Error in set_data: {e}")
+                import traceback
+                print(traceback.format_exc())
 
     def _safe_set_span(self, row: int, col: int, rowspan: int, colspan: int):
         """Bezpieczne ustawienie spanów, unikające błędu QTableView::setSpan"""
@@ -161,7 +169,7 @@ class ResultTable(QWidget):
                 incorrect_count += 1
 
             # Kolumna 2: czas
-            self._set_cell(row_index, 2, str(round(row.time.total_seconds(), 2)))
+            self._set_cell(row_index, 2, str(round(row.duration_s, 2)))
 
             # Kolumny 3–7: błędy
             errors = row.failures
@@ -184,8 +192,7 @@ class ResultTable(QWidget):
         summary_text = f"{correct_count} / {incorrect_count}"
         self._set_cell(summary_row, 1, summary_text, bold=True)
 
-        total_time = sum((item.time for item in data), timedelta())
-        total_seconds = round(total_time.total_seconds(), 2)
+        total_seconds = round(sum(item.duration_s for item in data), 2)
         self._set_cell(summary_row, 2, str(total_seconds), bold=True)
 
         total_failures0 = sum((item.failures[0] for item in data), 0)

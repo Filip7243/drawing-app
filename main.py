@@ -52,33 +52,33 @@ def step_form():
 
 TUTORIAL_SEQUENCE = [
     # step_form(),
-    step_audio("01_powitanie.wav"),
-    step_audio("02_zapamietaj_rysunek_przedmowa.wav"),
-    step_remember(is_tutorial=True),
-    step_draw(is_tutorial=True),
+    # step_audio("01_powitanie.wav"),
+    # step_audio("02_zapamietaj_rysunek_przedmowa.wav"),
+    # step_remember(is_tutorial=True),
+    # step_draw(is_tutorial=True),
     step_audio("07_koniec_samouczka.wav"),
 ]
 
 TEST_SEQUENCE = [
-    step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_1.png"),
+    step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_1.svg"),
     step_draw(is_tutorial=False),
-    step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_2.png"),
-    step_draw(is_tutorial=False),
-    step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_3.png"),
-    step_draw(is_tutorial=False),
-    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_4.png"),
+    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_2.svg"),
     # step_draw(is_tutorial=False),
-    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_5.png"),
+    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_3.svg"),
     # step_draw(is_tutorial=False),
-    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_6.png"),
+    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_4.svg"),
     # step_draw(is_tutorial=False),
-    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_7.png"),
+    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_5.svg"),
     # step_draw(is_tutorial=False),
-    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_8.png"),
+    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_6.svg"),
     # step_draw(is_tutorial=False),
-    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_9.png"),
+    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_7.svg"),
     # step_draw(is_tutorial=False),
-    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_10.png"),
+    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_8.svg"),
+    # step_draw(is_tutorial=False),
+    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_9.svg"),
+    # step_draw(is_tutorial=False),
+    # step_remember(is_tutorial=False, bg="assets:img/figures/bvrt_c_10.svg"),
     # step_draw(is_tutorial=False),
 ]
 
@@ -109,7 +109,7 @@ TEST_SEQUENCE = [
 
 def main():
     app = QApplication(sys.argv)
-    app.setStyleSheet("background-color: white;")
+    # app.setStyleSheet("background-color: white;")
 
     QDir.addSearchPath("assets", os.fspath(CURRENT_DIRECTORY / "assets"))
 
@@ -220,20 +220,35 @@ def main():
         controller.set_test_mode(True)
 
         def on_test_complete():
+            print("on_test_complete: started")
             summary = metrics.end_test()
-            print("SUMMARY:", summary)
             controller.set_test_mode(False)
 
             meta = main_page.main_form.get_test_metadata()
-            print("RESULTS PAGE WITH ID: ", meta.patient_id)
+            print(f"on_test_complete: meta found: {meta}")
             results_page = ResultsPage(
                 examine_id=meta.examine_id, 
                 patient_id=meta.patient_id, 
                 summary=summary,
                 metrics=metrics
             )
-            controller.stack.addWidget(results_page)
-            controller.stack.setCurrentWidget(results_page)
+            print(f"on_test_complete: ResultsPage created, visibility={results_page.isVisible()}")
+            
+            # Tworzymy nowe okno dla wyników zamiast dodawać do stacka, 
+            # który mógł zostać zamknięty lub być w dziwnym stanie
+            # Przypisujemy do atrybutu, aby uniknąć GC
+            controller.results_page = results_page
+            results_page.show()
+            results_page.showMaximized()
+            results_page.raise_()
+            results_page.activateWindow()
+            print(f"on_test_complete: ResultsPage shown, visibility={results_page.isVisible()}, geometry={results_page.geometry()}")
+            
+            # Opcjonalnie ukrywamy stack jeśli nadal żyje
+            if controller.stack:
+                controller.stack.hide()
+                
+            print("on_test_complete: ResultsPage shown as independent window")
 
         controller.set_on_complete(on_test_complete)
         controller.start()

@@ -297,7 +297,7 @@ class TestMetrics:
             self.examinationService.update_examination_times(self._test_meta_data.examine_id,
                                                              whole_time=timedelta(seconds=total_duration_s),
                                                              avg_time=timedelta(seconds=avg_time_s))
-            
+
             if self._pupil_device:
                 try:
                     self._pupil_device.recording_stop_and_save()
@@ -307,7 +307,7 @@ class TestMetrics:
 
             # zapisujemy do JSON
             (self.session_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-            
+
             # Generujemy raport Excel
             try:
                 gen_date = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -337,10 +337,10 @@ class TestMetrics:
 
         # Dane do tabeli głównej (per rysunek)
         rows = []
-        for d in drawings:
+        for drawing in drawings:
             # Interpretacja strategii
-            strat = d.get("strategy_metrics", {})
-            
+            strat = drawing.get("strategy_metrics", {})
+
             # 1. Start od ogółu vs szczegółu
             expansion = strat.get("initial_expansion_ratio", 0)
             if expansion > 0.65:
@@ -372,18 +372,18 @@ class TestMetrics:
             strategy_desc = f"{expansion_str}, Przeskoki: {dist_str}, Kierunek: {dir_str}"
 
             row = {
-                "Index": d.get("index"),
-                "Czas całkowity [s]": round(d.get("duration_s", 0), 2),
-                "Czas rysowania [s]": round(d.get("actual_drawing_duration_s", 0), 2),
-                "Ilość przerw": d.get("interruptions_count", 0),
-                "Cofnij / Ponów (undo/redo)": f"{d.get('undo_count', 0)} / {d.get('redo_count', 0)}",
-                "Średni czas przerw [s]": round(d.get("avg_interruption_duration_s", 0) or 0, 2),
-                "Śr. prędkość [px/s]": round(d.get("avg_velocity", 0), 2),
-                "Max prędkość [px/s]": round(d.get("max_velocity", 0), 2),
-                "Ratio prędkości": round(d.get("velocity_ratio", 0), 3),
-                "Poprawki (overdrawing score)": round(d.get("overdrawing_score", 0), 4),
-                "Cieniowanie / Szorowanie": "Tak" if d.get("shading_detected", False) else "Nie",
-                "Powroty (revisits)": d.get("revisits_count", 0),
+                "Index": drawing.get("index"),
+                "Czas całkowity [s]": round(drawing.get("duration_s", 0), 2),
+                "Czas rysowania [s]": round(drawing.get("actual_drawing_duration_s") or 0, 2),
+                "Ilość przerw": drawing.get("interruptions_count", 0),
+                "Cofnij / Ponów (undo/redo)": f"{drawing.get('undo_count', 0)} / {drawing.get('redo_count', 0)}",
+                "Średni czas przerw [s]": round(drawing.get("avg_interruption_duration_s") or 0, 2),
+                "Śr. prędkość [px/s]": round(drawing.get("avg_velocity", 0), 2),
+                "Max prędkość [px/s]": round(drawing.get("max_velocity", 0), 2),
+                "Ratio prędkości": round(drawing.get("velocity_ratio", 0), 3),
+                "Poprawki (overdrawing score)": round(drawing.get("overdrawing_score", 0), 4),
+                "Cieniowanie / Szorowanie": "Tak" if drawing.get("shading_detected", False) else "Nie",
+                "Powroty (revisits)": drawing.get("revisits_count", 0),
                 "Strategia (interpretacja)": strategy_desc,
                 "Liczba kresek": strat.get("num_strokes", 0)
             }
@@ -391,20 +391,18 @@ class TestMetrics:
 
         df = pd.DataFrame(rows)
 
-
         # Zapis do Excela
         with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
             # Arkusz ze statystykami
             df.to_excel(writer, index=False, sheet_name='Statystyki rysunków', startrow=4)
-            
+
             workbook = writer.book
             sheet = writer.sheets['Statystyki rysunków']
-            
+
             # Nagłówki na górze
             sheet['A1'] = "RAPORT Z TESTU BVRT"
             sheet['A2'] = f"Całkowity czas trwania testu: {round(total_duration, 2)} s"
             sheet['A3'] = f"Średni czas na jeden rysunek: {round(avg_time_per_drawing, 2)} s"
-            
 
             # Formatowanie szerokości kolumn
             from openpyxl.utils import get_column_letter
@@ -563,7 +561,7 @@ class TestMetrics:
         # Jeśli droga jest znacznie dłuższa (np. 2.5x) od geometrycznego kształtu,
         # sugeruje to "nadpracowywanie" linii (shading/scrubbing).
         stroke_efficiency = path_length / simplified_path_length if simplified_path_length > 0 else 1.0
-        
+
         # Heurystyka cieniowania:
         # 1. Wysoki współczynnik złożoności drogi (nadmierne rysowanie po tym samym śladzie)
         # 2. Wykrycie co najmniej 2 gwałtownych nawrotów (180 stopni) w obrębie jednej kreski
@@ -600,7 +598,8 @@ class TestMetrics:
         # 2. kreski, które tylko minimalnie nachodzą na stare obszary -> 30% overlap
         if path_length > REVISIT_THRESHOLD and overlap_ratio > OVERLAP_RATIO_THRESHOLD:
             self._current_revisits_count += 1
-            print(f"Powrót do wcześniej odwiedzonego obszaru (overlap: {overlap_ratio:.2%}, łącznie powrotów: {self._current_revisits_count})")
+            print(
+                f"Powrót do wcześniej odwiedzonego obszaru (overlap: {overlap_ratio:.2%}, łącznie powrotów: {self._current_revisits_count})")
 
         # Aktualizujemy globalną siatkę odwiedzin dla tego rysunku
         self._visited_grid_cells.update(stroke_visited_cells)
@@ -644,13 +643,14 @@ class TestMetrics:
         # 2. Analiza Chaosu (Średni dystans 'w powietrzu' między kreskami)
         inter_stroke_distances = []
         for i in range(len(strokes) - 1):
-            if strokes[i] and strokes[i+1]:
+            if strokes[i] and strokes[i + 1]:
                 p_end = strokes[i][-1]
-                p_start = strokes[i+1][0]
-                dist = math.sqrt((p_start[2] - p_end[2])**2 + (p_start[3] - p_end[3])**2)
+                p_start = strokes[i + 1][0]
+                dist = math.sqrt((p_start[2] - p_end[2]) ** 2 + (p_start[3] - p_end[3]) ** 2)
                 inter_stroke_distances.append(dist)
 
-        mean_inter_stroke_distance = sum(inter_stroke_distances) / len(inter_stroke_distances) if inter_stroke_distances else 0.0
+        mean_inter_stroke_distance = sum(inter_stroke_distances) / len(
+            inter_stroke_distances) if inter_stroke_distances else 0.0
 
         # 3. Kierunek rysowania (Wektor przesunięcia środków ciężkości)
         centroids = []
@@ -663,8 +663,8 @@ class TestMetrics:
         avg_dx = 0.0
         avg_dy = 0.0
         if len(centroids) > 1:
-            diffs_x = [centroids[i+1][0] - centroids[i][0] for i in range(len(centroids)-1)]
-            diffs_y = [centroids[i+1][1] - centroids[i][1] for i in range(len(centroids)-1)]
+            diffs_x = [centroids[i + 1][0] - centroids[i][0] for i in range(len(centroids) - 1)]
+            diffs_y = [centroids[i + 1][1] - centroids[i][1] for i in range(len(centroids) - 1)]
             avg_dx = sum(diffs_x) / len(diffs_x)
             avg_dy = sum(diffs_y) / len(diffs_y)
 
@@ -687,7 +687,7 @@ class TestMetrics:
         finished_at = perf_counter()
         finished_at_ts = time.time()
         index = self._drawing_counter
-        
+
         if self._pupil_device:
             event_name = f"drawing_{index}_ended"
             self._send_pupil_event(event_name)
@@ -786,8 +786,39 @@ class TestMetrics:
         # Zapis danych konkretnego rysunku do listy wszystkich, na koniec w funkcji end_test lista zostanie sparsowana
         # do json i zapisana w pliku summary.json w katalogu testu
         self._records.append(new_record)
-        image_record = Image(self._test_meta_data.examine_id, image_to_bytes(image),
-                             timedelta(seconds=new_record.duration_s))
+        image_record = Image(
+            id=None,
+            examine_id=self._test_meta_data.examine_id,
+            content=image_to_bytes(image),
+            started_at_ts=datetime.fromtimestamp(new_record.started_at_ts),
+            first_stroke_at_ts=datetime.fromtimestamp(
+                new_record.first_stroke_at_ts) if new_record.first_stroke_at_ts else None,
+            finished_at_ts=datetime.fromtimestamp(new_record.finished_at_ts),
+            interruptions_count=new_record.interruptions_count,
+            interruptions_durations=new_record.interruption_durations,
+            undo_count=new_record.undo_count,
+            redo_count=new_record.redo_count,
+            overdrawing_score=new_record.overdrawing_score,
+            revisit_count=new_record.revisits_count,
+            shading_detected=new_record.shading_detected,
+            direction_changes_count=new_record.direction_changes_count,
+            direction_reversal_count=new_record.directional_reversals_count,
+            rapid_velocity_changes_count=new_record.rapid_velocity_changes_count,
+            efficiency_ratio=new_record.efficiency_ratio,
+            max_local_density=new_record.max_local_density,
+            max_local_density_coords=list(
+                new_record.max_local_density_coords) if new_record.max_local_density_coords else [],
+            avg_velocity=new_record.avg_velocity,
+            max_velocity=new_record.max_velocity,
+            velocity_ratio=new_record.velocity_ratio,
+            velocities=new_record.velocities,
+            velocity_profile_filename=new_record.velocity_profile_filename or "",
+            overlay_filename=new_record.overlay_filename or "",
+            heatmap_filename=new_record.heatmap_filename or "",
+            duration_s=new_record.duration_s,
+            actual_drawing_duration_s=new_record.actual_drawing_duration_s or 0.0,
+            avg_interruption_duration_s=new_record.avg_interruption_duration_s or 0.0
+        )
         self.imageRepository.insert_image(image_record)
 
         # Czyszczenie stanu po zakończeniu rysowania
@@ -961,7 +992,7 @@ class TestMetrics:
             # Zapis do bufora w pamięci
             buf = io.BytesIO()
             plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
-            plt.close() # Zamknięcie figury
+            plt.close()  # Zamknięcie figury
 
             buf.seek(0)
             img = QImage.fromData(buf.getvalue())

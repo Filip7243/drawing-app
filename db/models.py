@@ -1,9 +1,7 @@
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from enum import Enum
 from typing import Optional
-
-from PyQt6.QtGui import QImage
 
 
 # --- ENUMY ---
@@ -28,11 +26,7 @@ class SchoolDetails(Enum):
     LICENCJAT = "LICENCJAT"
     MAGISTER = "MAGISTER"
     DOKTORAT = "DOKTORAT"
-
-
-class Mode(Enum):
-    NORMALNY = "NORMALNY"
-    UPROSZCZONY = "UPROSZCZONY"
+    EDUKACJA_ZAKONCZONE = "EDUKACJA_ZAKONCZONE"
 
 
 class Hand(Enum):
@@ -53,57 +47,68 @@ class Patient:
     first_name: str
     last_name: str
     date_of_birth: date
-    age_years: int
-    age_months: int
-    age_days: int
     gender: Gender
     dominant_hand: Hand
-    eye_impairment: bool
-    eye_description: Optional[str] = None
-
-
-@dataclass
-class Comment:
-    patient_id: int
-    comment: str
-
-
-@dataclass
-class PatientDegree:
-    id: Optional[int]
-    patient_id: int
-    degree: School
-    degree_details: SchoolDetails
 
 
 @dataclass
 class Examination:
     id: Optional[int]
     patient_id: int
-    degree_id: int
-    examination_mode: Mode
     date: date
     whole_time: Optional[timedelta]
     avg_time: Optional[timedelta]
-    comment: Optional[str]
+    age_years: int
+    age_months: int
+    age_days: int
+    visual_impairment: bool
+    impairment_description: Optional[str]
+    education: School
+    education_details: SchoolDetails
+    comments: Optional[str]
+    examination_reason: Optional[str]
+    total_duration_s: float
+    test_start_ts: float
+    test_end_ts: datetime
 
 
 @dataclass
 class Image:
+    id: Optional[int]
     examine_id: int
     content: bytes
-    time: Optional[timedelta]
-
-
-@dataclass
-class AfterwardsOpinion:
-    examine_id: int
-    opinion: Optional[str]
+    started_at_ts: datetime
+    first_stroke_at_ts: datetime
+    finished_at_ts: datetime
+    interruptions_count: int
+    interruptions_durations: list[float]
+    undo_count: int
+    redo_count: int
+    overdrawing_score: float
+    revisit_count: int
+    shading_detected: bool
+    direction_changes_count: int
+    direction_reversal_count: int
+    rapid_velocity_changes_count: int
+    efficiency_ratio: float
+    max_local_density: float
+    max_local_density_coords: list[int]
+    avg_velocity: float
+    max_velocity: float
+    velocity_ratio: float
+    velocities: list[float]
+    velocity_profile_filename: str
+    overlay_filename: str
+    heatmap_filename: str
+    duration_s: float
+    actual_drawing_duration_s: float
+    avg_interruption_duration_s: float
 
 
 @dataclass
 class Failure:
-    examine_id: int
+    id: Optional[int]
+    image_id: int
     pominiecia: int
     znieksztalcenia: int
     perserwacje: int
@@ -126,7 +131,8 @@ class PatientSummaryDTO:
     age_days: int
     gender: Gender
     dominant_hand: Hand
-    eye_description: Optional[str]
+    visual_impairment: bool
+    impairment_description: Optional[str]
     comment: Optional[str]
 
 
@@ -135,7 +141,7 @@ class ImageTableDataSummary:
     idx: int
     examine_id: int
     content: bytes
-    time: Optional[timedelta]
+    duration_s: float
     is_valid: bool
     failures: list[int]
 

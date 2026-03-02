@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QGridLayout, QHBoxLayout, QMessageBox
@@ -8,12 +8,8 @@ from components.StyledCheckBox import StyledCheckBox
 from components.StyledDropdown import StyledDropdown
 from components.StyledTextArea import StyledTextArea
 from components.StyledTextInput import StyledTextInput
-from db.models import Patient, Gender, Hand, Examination, Mode, PatientDegree, School, SchoolDetails, Comment, \
-    AfterwardsOpinion, TestMetaData
-from db.repository.AfterwardsOpinionRepository import ExamineReasonRepository
-from db.repository.CommentRepository import CommentRepository
+from db.models import Patient, Gender, Hand, Examination, School, SchoolDetails, TestMetaData
 from db.repository.ExaminationRepository import ExaminationRepository
-from db.repository.PatientDegreeRepository import PatientDegreeRepository
 from db.service.PatientService import PatientService
 
 
@@ -45,9 +41,6 @@ class MainForm(QWidget):
 
     patientService = PatientService()
     examinationRepository = ExaminationRepository()
-    patientDegreeRepository = PatientDegreeRepository()
-    commentRepository = CommentRepository()
-    examineReasonRepository = ExamineReasonRepository()
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -202,57 +195,35 @@ class MainForm(QWidget):
         else:
             hand_enum = None
         patient = Patient(
-            None,
-            self.first_name.get_value(),
-            self.last_name.get_value(),
-            self.date_of_birth.get_value(),
-            years,
-            months,
-            days,
-            gender_enum,
-            hand_enum,
-            self.eyes_radios.get_value() == 'Tak',
-            self.eyes_description.get_value()
+            id=None,
+            first_name=self.first_name.get_value(),
+            last_name=self.last_name.get_value(),
+            date_of_birth=self.date_of_birth.get_value(),
+            gender=gender_enum,
+            dominant_hand=hand_enum,
         )
         patient_id = self.patientService.createOrUpdatePatient(patient)
 
-        degree = PatientDegree(
-            None,
-            patient_id,
-            self.education_dropdown.get_value(),
-            self.details_dropdown.get_value()
-        )
-        degree_id = self.patientDegreeRepository.insert_patient_degree(degree)
-
-        mode_value = self.mode_radios.get_value()
-        if mode_value == "Normalny":
-            mode_enum = Mode.NORMALNY
-        elif mode_value == "Uproszczony":
-            mode_enum = Mode.UPROSZCZONY
-        else:
-            mode_enum = None
         examination = Examination(
-            None,
-            patient_id,
-            degree_id,
-            mode_enum,
-            date.today(),
-            None,
-            None,
-            self.examine_reason.get_value()
+            id=None,
+            patient_id=patient_id,
+            date=date.today(),
+            whole_time=None,
+            avg_time=None,
+            age_years=years,
+            age_months=months,
+            age_days=days,
+            visual_impairment=self.eyes_radios.get_value() == 'Tak',
+            impairment_description=self.eyes_description.get_value(),
+            education=self.education_dropdown.get_value(),
+            education_details=self.details_dropdown.get_value(),
+            comments=self.additional_info.get_value(),
+            examination_reason=self.examine_reason.get_value(),
+            total_duration_s=0.0,
+            test_start_ts=0.0,
+            test_end_ts=datetime.now()
         )
         examination_id = self.examinationRepository.insert_examination(examination)
 
-        additional_info = Comment(
-            patient_id=patient_id,
-            comment=self.additional_info.get_value()
-        )
-        self.commentRepository.insert_comment(additional_info)
-
-        afterwards_opinion = AfterwardsOpinion(
-            examination_id,
-            None
-        )
-        self.examineReasonRepository.insert_afterwards_opinion(afterwards_opinion)
         self.test_meta_data = TestMetaData(examination_id, patient_id)
         self.startRequested.emit()
