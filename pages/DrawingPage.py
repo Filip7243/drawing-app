@@ -54,13 +54,13 @@ class DrawingPage(QWidget):
         self.redo_button.clicked.connect(self.april_tags.canvas.redo)
 
         # Przycisk Dalej
-        done_button = StyledButton("DALEJ", color="#FFFFFF", font_color="#000000", font_size=22)
-        done_button.clicked.connect(self.on_done_btn_click)
+        self.done_button = StyledButton("DALEJ", color="#FFFFFF", font_color="#000000", font_size=22)
+        self.done_button.clicked.connect(self.on_done_btn_click)
         
         # Dodajemy do ramki w AprilTagsComponent (kolejność ma znaczenie dla pozycjonowania w resizeEvent)
         self.april_tags.add_widget_to_frame(self.undo_button)
         self.april_tags.add_widget_to_frame(self.redo_button)
-        self.april_tags.add_widget_to_frame(done_button)
+        self.april_tags.add_widget_to_frame(self.done_button)
 
         self.setLayout(main_layout)
 
@@ -75,8 +75,24 @@ class DrawingPage(QWidget):
             audio_path = dir_assets.absoluteFilePath(self.audio)
             self.player.setSource(QUrl.fromLocalFile(audio_path))
 
+            self.player.playbackStateChanged.connect(self._on_playback_state_changed)
+
             self.player.stop()
             self.player.play()
+
+            # Zablokuj przyciski na początku odtwarzania
+            self._set_buttons_enabled(False)
+
+    def _on_playback_state_changed(self, state):
+        if state == QMediaPlayer.PlaybackState.StoppedState:
+            self._set_buttons_enabled(True)
+        else:
+            self._set_buttons_enabled(False)
+
+    def _set_buttons_enabled(self, enabled: bool):
+        self.done_button.setEnabled(enabled)
+        self.undo_button.setEnabled(enabled)
+        self.redo_button.setEnabled(enabled)
 
     def export_as_image(self) -> QImage:
         """
