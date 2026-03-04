@@ -14,6 +14,7 @@ from pages.DrawingPage import DrawingPage
 from pages.MainFormPage import MainFormPage
 from pages.RememberFigurePage import RememberFigurePage
 from pages.ResultsPage import ResultsPage
+from PyQt6.QtGui import QGuiApplication
 
 CURRENT_DIRECTORY = Path(__file__).resolve().parent
 
@@ -26,17 +27,17 @@ def step_audio(audio_file: str):
     return _factory
 
 
-def step_remember(is_tutorial: bool, bg: str = "assets:img/figures/tutorial_figure_white.png"):
+def step_remember(is_tutorial: bool, bg: str = "assets:img/figures/tutorial_figure_white.png", audio: str = None):
     def _factory():
-        page = RememberFigurePage(bg_path=bg, is_tutorial=is_tutorial)
+        page = RememberFigurePage(bg_path=bg, is_tutorial=is_tutorial, audio=audio)
         return page
 
     return _factory
 
 
-def step_draw(is_tutorial: bool):
+def step_draw(is_tutorial: bool, audio: str = None):
     def _factory():
-        page = DrawingPage(is_tutorial=is_tutorial)
+        page = DrawingPage(is_tutorial=is_tutorial, audio=audio)
         return page
 
     return _factory
@@ -52,11 +53,11 @@ def step_form():
 
 TUTORIAL_SEQUENCE = [
     # step_form(),
-    # step_audio("01_powitanie.wav"),
-    # step_audio("02_zapamietaj_rysunek_przedmowa.wav"),
-    # step_remember(is_tutorial=True),
-    # step_draw(is_tutorial=True),
-    step_audio("07_koniec_samouczka.wav"),
+    step_audio("01_powitanie (2).wav"),
+    step_audio("02_zapamietaj_rysunek_przedmowa (2).wav"),
+    step_remember(is_tutorial=True, audio="03_zapamietaj_rysunek (2).wav"),
+    step_draw(is_tutorial=True, audio="05_odwzoruj_rysunek (2).wav"),
+    step_audio("07_koniec_samouczka (2).wav"),
 ]
 
 TEST_SEQUENCE = [
@@ -234,21 +235,36 @@ def main():
             )
             print(f"on_test_complete: ResultsPage created, visibility={results_page.isVisible()}")
             
+            # Pobieramy listę wszystkich ekranów
+            screens = QGuiApplication.screens()
+            
+            # Logika wyboru ekranu lekarza (powrót na ekran 0):
+            # Zawsze celujemy w ekran główny (indeks 0).
+            target_screen = screens[0]
+            print(f"DEBUG: Powrót na ekran lekarza: {target_screen.name()} | Geometry: {target_screen.geometry()}")
+            
             # Tworzymy nowe okno dla wyników zamiast dodawać do stacka, 
             # który mógł zostać zamknięty lub być w dziwnym stanie
             # Przypisujemy do atrybutu, aby uniknąć GC
             controller.results_page = results_page
+            
+            # Przenosimy okno na wybrany ekran przed wyświetleniem
+            results_page.hide() # Na wszelki wypadek
+            results_page.setScreen(target_screen)
+            geom = target_screen.geometry()
+            results_page.move(geom.topLeft())
+            
             results_page.show()
             results_page.showMaximized()
             results_page.raise_()
             results_page.activateWindow()
-            print(f"on_test_complete: ResultsPage shown, visibility={results_page.isVisible()}, geometry={results_page.geometry()}")
+            print(f"on_test_complete: ResultsPage shown on screen 0, visibility={results_page.isVisible()}, geometry={results_page.geometry()}")
             
             # Opcjonalnie ukrywamy stack jeśli nadal żyje
             if controller.stack:
                 controller.stack.hide()
                 
-            print("on_test_complete: ResultsPage shown as independent window")
+            print("on_test_complete: ResultsPage shown as independent window on screen 0")
 
         controller.set_on_complete(on_test_complete)
         controller.start()
@@ -261,7 +277,37 @@ def main():
         meta = main_page.main_form.get_test_metadata()
         metrics.test_meta_data(TestMetaData(examine_id=meta.examine_id, patient_id=meta.patient_id))
         metrics.start_test()
+
+        # Pobieramy listę wszystkich ekranów
+        screens = QGuiApplication.screens()
+
+        print(f"DEBUG: Wykryto {len(screens)} ekranów.")
+        for idx, s in enumerate(screens):
+            print(f"DEBUG: Ekran {idx}: {s.name()} | Geometry: {s.geometry()}")
+
+        # Logika wyboru ekranu pacjenta:
+        # Jeśli są co najmniej dwa ekrany, wybieramy drugi (indeks 1).
+        # Jeśli jest tylko jeden, zostajemy na nim.
+        target_screen = screens[1] if len(screens) > 1 else screens[0]
+        print(f"DEBUG: Wybrany ekran docelowy: {target_screen.name()}")
+
+        # Ukrywamy formularz lekarza
         main_page.close()
+
+        # Ustawiamy ekran dla okna testowego przed startem
+        # controller._stack to QStackedWidget, który jest głównym oknem testu
+        stack = controller._stack
+        
+        # Wyłączamy tryb pełnoekranowy przed przeniesieniem, aby uniknąć problemów z geometrią
+        stack.hide()
+        
+        # Przypisujemy do ekranu i przenosimy fizycznie na jego współrzędne
+        stack.setScreen(target_screen)
+        geom = target_screen.geometry()
+        stack.move(geom.topLeft())
+        
+        print(f"DEBUG: Przenoszenie okna na: {geom.topLeft()}")
+
         controller.start()
 
     # Nasłuchiwanie kliknięcia "Rozpocznij" w formularzu głównym

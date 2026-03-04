@@ -58,6 +58,12 @@ class FlowController(QObject):
         if not self._stack.isVisible():
             if self._idx == -1:
                 self._advance()
+            
+            # Jeśli okno ma przypisany konkretny ekran, upewnij się, że geometry jest z nim zgodne
+            if self._stack.screen():
+                geom = self._stack.screen().geometry()
+                self._stack.move(geom.topLeft())
+                
             self._stack.showMaximized()
         else:
             self._advance()

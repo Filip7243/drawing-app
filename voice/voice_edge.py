@@ -3,8 +3,10 @@ import asyncio
 from pydub import AudioSegment
 from pathlib import Path
 
+
 async def generuj_glos_dla_dzieci(tekst, plik, **opcje):
     tmp_mp3 = Path(plik).with_suffix(".mp3")
+    print("TMP_MP3:", tmp_mp3)
 
     """
     Generuje naturalny głos z pełną kontrolą nad parametrami.
@@ -16,18 +18,17 @@ async def generuj_glos_dla_dzieci(tekst, plik, **opcje):
     """
     # Domyślne ustawienia zoptymalizowane dla dzieci
     glos = opcje.get('voice', 'pl-PL-AgnieszkaNeural')
-    rate = opcje.get('rate', '+5%')  # Tempo: -50% do +100%
-    volume = opcje.get('volume', '+10%')  # Głośność: -50% do +50%
-    pitch = opcje.get('pitch', '+8Hz')  # Wysokość: -50Hz do +50Hz
+    rate = opcje.get('rate', '+0%')
+    volume = opcje.get('volume', '+0%')
+    pitch = opcje.get('pitch', '+0Hz')
 
-    # Tworzenie communicate z SSML dla lepszej kontroli
-    communicate = edge_tts.Communicate(
-        tekst,
-        glos,
-        rate=rate,
-        volume=volume,
-        pitch=pitch
-    )
+    # Tworzenie katalogu nadrzędnego, jeśli nie istnieje
+    Path(plik).parent.mkdir(parents=True, exist_ok=True)
+
+    # Tworzenie communicate bez jawnych jednostek w parametrach, jeśli edge-tts ich nie lubi w tej wersji
+    # lub użycie domyślnych, jeśli to one powodują błąd.
+    print(f"DEBUG: Tekst='{tekst}', glos='{glos}', rate='{rate}', volume='{volume}', pitch='{pitch}'")
+    communicate = edge_tts.Communicate(tekst, glos, rate=rate, volume=volume, pitch=pitch)
 
     await communicate.save(str(tmp_mp3))
     print(f"Zapisano MP3: {tmp_mp3}")
@@ -39,22 +40,37 @@ async def generuj_glos_dla_dzieci(tekst, plik, **opcje):
 
 
 async def main():
-    print("Generowanie głosów dla dzieci z Edge TTS\n")
+    import edge_tts
+    c = edge_tts.Communicate(
+        "Cześć! Miło mi Cię poznać! Teraz pokażę Ci jak będzie przebiegał nasz test.. Jeśli jesteś gotowy wciśniej przycisk Dalej, jeśli czegoś nie zrozumiałeś kliknij Powtórz.",
+        "pl-PL-ZofiaNeural", rate='+0%', volume='+2%', pitch='+0Hz')
+    await c.save("audio\\edge\\01_powitanie.wav")
 
-    print("Wariant 1: Optymalne ustawienia dla dzieci")
+    d = edge_tts.Communicate(
+        "W teście będzie trzeba zapamiętać 10 rysunków, a następnie je odwzorować z pamięci. Nie martw się, nikt Cię nie będzie oceniał, możesz rysować tyle czasu ile chcesz. Na zapamiętanie każdego z rysunków będziesz miał 10 sekund. Jeśli jesteś gotowy wciśniej przycisk Dalej. jeśli czegoś nie zrozumiałeś kilknij Powtórz",
+        "pl-PL-ZofiaNeural", rate='-1%', volume='+2%', pitch='+0Hz')
+    await d.save("audio\\edge\\02_zapamietaj_rysunek_przedmowa.wav")
+
+    e = edge_tts.Communicate(
+        "A teraz zapamiętaj rysunek",
+        "pl-PL-ZofiaNeural", rate='+1%', volume='+2%', pitch='+0Hz')
+    await e.save("audio\\edge\\03_zapamietaj_rysunek.wav")
+
+    f = edge_tts.Communicate(
+        "A teraz spróbuj narysować to co przed chwilą widziałeś. Jeśli skończysz kliknij przycisk Dalej znajdujący się u dołu ekranu. Jeśli chcesz cofnąć to co aktualnie narysowałeś użyj przycisków ze strzałkami, które znajdują się na dole.",
+        "pl-PL-ZofiaNeural", rate='+1%', volume='+2%', pitch='+0Hz')
+    await f.save("audio\\edge\\05_odwzoruj_rysunek.wav")
+
+    g = edge_tts.Communicate(
+        "Jeśli będziesz gotowy, kliknij dalej, jeśli chcesz powtórzyć samouczek kliknij Powtórz!. Powodzenia!",
+        "pl-PL-ZofiaNeural", rate='+1%', volume='+2%', pitch='+0Hz')
+    await g.save("audio\\edge\\07_koniec_samouczka.wav")
+
     # await generuj_glos_dla_dzieci(
-    #     "Cześć! Miło mi Cię poznać!... Teraz pokażę Ci jak będzie przebiegał nasz test, jeśli jesteś gotowy wciśniej przycisk Dalej... jeśli czegoś nie zrozumiałeś kilknij Powtórz",
-    #     "audio\\edge\\01_powitanie.wav",
-    #     rate='+0%',
-    #     volume='+8%',  # Trochę głośniej
-    #     pitch='+6Hz'  # Wyższy ton - bardziej przyjazny
-    # )
-    #
-    # await generuj_glos_dla_dzieci(
-    #     "W teście będzie trzeba zapamiętać 10 rysunków, a następnie je odwzorować z pamięci... Na zapamiętanie każdego z rysunków będziesz miał 10 sekund. Jeśli jesteś gotowy wciśniej przycisk Dalej... jeśli czegoś nie zrozumiałeś kilknij Powtórz",
+    #     "W teście będzie trzeba zapamiętać 10 rysunków, a następnie je odwzorować z pamięci. Nie martw się, nikt Cię nie będzie oceniał, możesz rysować tyle czasu ile chcesz. Na zapamiętanie każdego z rysunków będziesz miał 10 sekund. Jeśli jesteś gotowy wciśniej przycisk Dalej. jeśli czegoś nie zrozumiałeś kilknij Powtórz",
     #     "audio\\edge\\02_zapamietaj_rysunek_przedmowa.wav",
     #     rate='+2%',  # Lekko szybciej
-    #     volume='+8%',  # Trochę głośniej
+    #     volume='+6%',  # Trochę głośniej
     #     pitch='+6Hz'  # Wyższy ton - bardziej przyjazny
     # )
     #
@@ -62,7 +78,7 @@ async def main():
     #     "A teraz zapamiętaj rysunek",
     #     "audio\\edge\\03_zapamietaj_rysunek.wav",
     #     rate='+2%',  # Lekko szybciej
-    #     volume='+8%',  # Trochę głośniej
+    #     volume='+6%',  # Trochę głośniej
     #     pitch='+6Hz'  # Wyższy ton - bardziej przyjazny
     # )
     #
@@ -75,10 +91,10 @@ async def main():
     # )
     #
     # await generuj_glos_dla_dzieci(
-    #     "A teraz spróbuj narysować to co przed chwilą widziałeś.. Jeśli skończysz kliknij przycisk Dalej znajdujący się u dołu ekranu",
+    #     "A teraz spróbuj narysować to co przed chwilą widziałeś. Jeśli skończysz kliknij przycisk Dalej znajdujący się u dołu ekranu. Jeśli chcesz cofnąć to co aktualnie narysowałeś użyj przycisków ze strzałkami, które znajdują się na dole.",
     #     "audio\\edge\\05_odwzoruj_rysunek.wav",
-    #     rate='+2%',  # Lekko szybciej
-    #     volume='+8%',  # Trochę głośniej
+    #     rate='+4%',  # Lekko szybciej
+    #     volume='+6%',  # Trochę głośniej
     #     pitch='+6Hz'  # Wyższy ton - bardziej przyjazny
     # )
     #
@@ -89,13 +105,13 @@ async def main():
     #     volume='+8%',  # Trochę głośniej
     #     pitch='+6Hz'  # Wyższy ton - bardziej przyjazny
     # )
-    await generuj_glos_dla_dzieci(
-        "Jeśli będziesz gotowy, kliknij dalej, jeśli chce powtórzyć samouczek kliknij Powtórz!... Powodzenia!",
-        "audio\\edge\\07_koniec_samouczka.wav",
-        rate='+2%',  # Lekko szybciej
-        volume='+8%',  # Trochę głośniej
-        pitch='+6Hz'  # Wyższy ton - bardziej przyjazny
-    )
+    # await generuj_glos_dla_dzieci(
+    #     "Jeśli będziesz gotowy, kliknij dalej, jeśli chcesz powtórzyć samouczek kliknij Powtórz!. Powodzenia!",
+    #     "audio\\edge\\07_koniec_samouczka.wav",
+    #     rate='+2%',  # Lekko szybciej
+    #     volume='+6%',  # Trochę głośniej
+    #     pitch='+6Hz'  # Wyższy ton - bardziej przyjazny
+    # )
 
 
 if __name__ == "__main__":
