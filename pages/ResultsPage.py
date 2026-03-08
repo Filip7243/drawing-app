@@ -56,12 +56,12 @@ class ResultsPage(QWidget):
 
             # PatientSummary
             print("ResultsPage: creating PatientSummary")
-            patient_widget = PatientSummary(
+            self.patient_widget = PatientSummary(
                 patient_id=patient_id,
                 metrics=self._metrics
             )
-            patient_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-            content_layout.addWidget(patient_widget)
+            self.patient_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            content_layout.addWidget(self.patient_widget)
 
             main_layout.addLayout(content_layout)
 

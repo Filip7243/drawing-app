@@ -52,7 +52,15 @@ class PatientSummary(QWidget):
 
         print("self.patient_data: ", self.patient_data)
 
+        self._end_btn = None # Będzie zainicjalizowane w _setup_ui
         self._setup_ui()
+
+    def set_end_button_enabled(self, enabled: bool):
+        """Włącza lub wyłącza przycisk KONIEC."""
+        print("w set end btn")
+        if self._end_btn:
+            print("Wszedlem w setEnabled!")
+            self._end_btn.setEnabled(enabled)
 
     def _setup_ui(self):
         try:
@@ -115,14 +123,15 @@ class PatientSummary(QWidget):
 
             frame_layout.addItem(QSpacerItem(0, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
 
-            end_btn = StyledButton("KONIEC", color="#d9534f", font_color="white")
-            end_btn.setFixedWidth(200)
-            end_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            end_btn.clicked.connect(self.on_end_clicked)
+            self._end_btn = StyledButton("KONIEC", color="#d9534f", font_color="white")
+            self._end_btn.setFixedWidth(200)
+            self._end_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._end_btn.clicked.connect(self.on_end_clicked)
+            self._end_btn.setEnabled(False) # Domyślnie zablokowany
 
             btn_layout = QHBoxLayout()
             btn_layout.addStretch()
-            btn_layout.addWidget(end_btn)
+            btn_layout.addWidget(self._end_btn)
             btn_layout.addStretch()
 
             frame_layout.addLayout(btn_layout)

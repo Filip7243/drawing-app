@@ -264,11 +264,12 @@ class TestMetrics:
             except Exception as e:
                 print(f"Failed to start Pupil recording or send event: {e}")
 
-    def end_test(self) -> dict[str, Any]:
+    def end_test(self, on_finished: Optional[callable] = None) -> dict[str, Any]:
         """
         Kończy test BVRT i zapisuje jego dane do pliku JSON.
         Dane zapisane w pliku `summary.json` mają następującą strukturę:
 
+        :param on_finished: Opcjonalny callback wywoływany po zakończeniu generowania plików.
         :returns:
             Dict [str., Any]: Słownik zawierający podsumowanie testu, w tym całkowity czas trwania (`total_duration_s`)
             oraz listę rysunków (`drawings`) z czasami rysowania.
@@ -307,14 +308,22 @@ class TestMetrics:
 
             # zapisujemy do JSON
             (self.session_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+            print("Zapisano report JSON")
 
             # Generujemy raport Excel
             try:
                 gen_date = datetime.now().strftime("%Y%m%d_%H%M%S")
                 self.generate_excel_report(summary, self.session_dir / f"raport_koncowy_{gen_date}.xlsx")
+                print("Wygenerowano raport excel.")
             except Exception as e:
                 print(f"Failed to generate Excel report: {e}")
                 traceback.print_exc()
+
+            if on_finished:
+                print("on_finished dziala")
+                on_finished()
+            else:
+                print("on_finished nie dziala")
 
             return summary
         except Exception as e:
@@ -716,13 +725,13 @@ class TestMetrics:
             heatmap_img.save(str(heatmap_path), "PNG")
 
         # 3. Generowanie i zapisywanie profilu prędkości (krzywa log-normalna)
-        velocity_profile_filename = None
-        if self._current_velocities:
-            velocity_img = self._generate_velocity_profile_image()
-            if velocity_img:
-                velocity_profile_filename = f"{base_filename}_velocity.png"
-                velocity_path = self.session_dir / velocity_profile_filename
-                velocity_img.save(str(velocity_path), "PNG")
+        # velocity_profile_filename = None
+        # if self._current_velocities:
+        #     velocity_img = self._generate_velocity_profile_image()
+        #     if velocity_img:
+        #         velocity_profile_filename = f"{base_filename}_velocity.png"
+        #         velocity_path = self.session_dir / velocity_profile_filename
+        #         velocity_img.save(str(velocity_path), "PNG")
 
         avg_vel = sum(self._current_velocities) / len(self._current_velocities) if self._current_velocities else 0.0
         max_vel = max(self._current_velocities) if self._current_velocities else 0.0
@@ -776,7 +785,7 @@ class TestMetrics:
             max_velocity=max_vel,
             velocity_ratio=vel_ratio,
             velocities=list(self._current_velocities),
-            velocity_profile_filename=velocity_profile_filename,
+            velocity_profile_filename="velocity_profile_filename",
             display_info=self._current_display_info,
             overlay_filename=overlay_filename,
             heatmap_filename=heatmap_filename,

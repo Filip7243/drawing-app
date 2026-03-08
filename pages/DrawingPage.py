@@ -88,4 +88,6 @@ class DrawingPage(QWidget):
         return image
 
     def on_done_btn_click(self):
+        if self.done_button:
+            self.done_button.setEnabled(False)
         self.finished.emit()  # Emitujemy sygnał dla kontrolera, że rysowanie zostało zakończone

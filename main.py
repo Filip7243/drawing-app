@@ -222,6 +222,12 @@ def main():
 
         def on_test_complete():
             print("on_test_complete: started")
+
+            def enable_end_button():
+                print("enable_end_button: report generation finished")
+                if hasattr(controller, 'results_page') and controller.results_page:
+                    controller.results_page.patient_widget.set_end_button_enabled(True)
+
             summary = metrics.end_test()
             controller.set_test_mode(False)
 
@@ -247,6 +253,9 @@ def main():
             # który mógł zostać zamknięty lub być w dziwnym stanie
             # Przypisujemy do atrybutu, aby uniknąć GC
             controller.results_page = results_page
+
+            # Teraz możemy bezpiecznie wywołać enable_end_button, ponieważ results_page jest już w kontrolerze
+            enable_end_button()
             
             # Przenosimy okno na wybrany ekran przed wyświetleniem
             results_page.hide() # Na wszelki wypadek
