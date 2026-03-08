@@ -56,11 +56,11 @@ async def main():
     #     "pl-PL-ZofiaNeural", rate='+1%', volume='+2%', pitch='+0Hz')
     # await e.save("audio\\edge\\03_zapamietaj_rysunek.wav")
     #
-    # f = edge_tts.Communicate(
-    #     "A teraz spróbuj narysować to co przed chwilą widziałeś. Jeśli skończysz kliknij przycisk Dalej znajdujący się u dołu ekranu. Jeśli chcesz cofnąć to co aktualnie narysowałeś użyj przycisków ze strzałkami, które znajdują się na dole.",
-    #     "pl-PL-ZofiaNeural", rate='+1%', volume='+2%', pitch='+0Hz')
-    # await f.save("audio\\edge\\05_odwzoruj_rysunek.wav")
-    #
+    f = edge_tts.Communicate(
+        "A teraz spróbuj narysować to co przed chwilą widziałeś. Jeśli skończysz kliknij przycisk Dalej znajdujący się u dołu ekranu.",
+        "pl-PL-ZofiaNeural", rate='+1%', volume='+2%', pitch='+0Hz')
+    await f.save("audio\\edge\\05_odwzoruj_rysunek.wav")
+
     # g = edge_tts.Communicate(
     #     "Jeśli będziesz gotowy, kliknij dalej, jeśli chcesz powtórzyć samouczek kliknij Powtórz!. Powodzenia!",
     #     "pl-PL-ZofiaNeural", rate='+1%', volume='+2%', pitch='+0Hz')
@@ -91,9 +91,9 @@ async def main():
     # )
     #
     # await generuj_glos_dla_dzieci(
-    #     "A teraz spróbuj narysować to co przed chwilą widziałeś. Jeśli skończysz kliknij przycisk Dalej znajdujący się u dołu ekranu. Jeśli chcesz cofnąć to co aktualnie narysowałeś użyj przycisków ze strzałkami, które znajdują się na dole.",
+    #     "A teraz spróbuj narysować to co przed chwilą widziałeś. Jeśli skończysz kliknij przycisk Dalej znajdujący się u dołu ekranu.",
     #     "audio\\edge\\05_odwzoruj_rysunek.wav",
-    #     rate='+4%',  # Lekko szybciej
+    #     rate='+0%',  # Lekko szybciej
     #     volume='+6%',  # Trochę głośniej
     #     pitch='+6Hz'  # Wyższy ton - bardziej przyjazny
     # )
@@ -113,18 +113,18 @@ async def main():
     #     pitch='+6Hz'  # Wyższy ton - bardziej przyjazny
     # )
 
-    h = edge_tts.Communicate(
-        "Cześć! Witaj w samouczku do testu. W teście odpowiesz na 60 pytań. "
-        "Na ekranie zobaczysz kartę z brakującym elementem wzoru. Twoim zadaniem jest dopasować właściwy wzór, "
-        "który uzupełnia tę kartę. Na dole ekranu znajdują się możliwe odpowiedzi. "
-        "Niektóre pytania będą miały 6 odpowiedzi, a inne 8, ale zawsze tylko jedna będzie poprawna. "
-        "Nie musisz się spieszyć — test nie jest na czas ani na ocenę. "
-        "Jeśli wszystko jest jasne, kliknij dalej, a test się rozpocznie. "
-        "Jeśli coś jest nie tak, kliknij powtórz, aby ponownie odsłuchać ten samouczek.",
-        "pl-PL-ZofiaNeural", rate='+1%', volume='+2%', pitch='+0Hz'
-    )
+    # h = edge_tts.Communicate(
+    #     "Cześć! Witaj w samouczku do testu. W teście odpowiesz na 60 pytań. "
+    #     "Na ekranie zobaczysz kartę z brakującym elementem wzoru. Twoim zadaniem jest dopasować właściwy wzór, "
+    #     "który uzupełnia tę kartę. Na dole ekranu znajdują się możliwe odpowiedzi. "
+    #     "Niektóre pytania będą miały 6 odpowiedzi, a inne 8, ale zawsze tylko jedna będzie poprawna. "
+    #     "Nie musisz się spieszyć — test nie jest na czas ani na ocenę. "
+    #     "Jeśli wszystko jest jasne, kliknij dalej, a test się rozpocznie. "
+    #     "Jeśli coś jest nie tak, kliknij powtórz, aby ponownie odsłuchać ten samouczek.",
+    #     "pl-PL-ZofiaNeural", rate='+1%', volume='+2%', pitch='+0Hz'
+    # )
 
-    await h.save("audio\\edge\\01_raven_samouczek.wav")
+    # await h.save("audio\\edge\\01_raven_samouczek.wav")
 
 
 if __name__ == "__main__":

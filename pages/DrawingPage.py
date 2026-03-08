@@ -40,26 +40,11 @@ class DrawingPage(QWidget):
         self.april_tags.canvas.redoClicked.connect(self.redoClicked.emit)
         main_layout.addWidget(self.april_tags)
 
-        # Przyciski przeniesione na AprilTagsComponent (na czarną ramkę)
-        # Lewa strona - undo/redo
-        self.undo_button = IconButton("assets/icons/arrow-left.png", color="#FFFFFF", icon_size=72, padding=14)
-        self.undo_button.setToolTip("Cofnij")
-        self.undo_button.clicked.connect(self.april_tags.canvas.undo)
-        
-        # Dla Redo użyjemy tej samej ikony ale odbitej.
-        redo_transform = QTransform().scale(-1, 1)
-        self.redo_button = IconButton("assets/icons/arrow-left.png", color="#FFFFFF",
-                                      transform=redo_transform, icon_size=72, padding=14)
-        self.redo_button.setToolTip("Ponów")
-        self.redo_button.clicked.connect(self.april_tags.canvas.redo)
-
         # Przycisk Dalej
         self.done_button = StyledButton("DALEJ", color="#FFFFFF", font_color="#000000", font_size=22)
         self.done_button.clicked.connect(self.on_done_btn_click)
         
         # Dodajemy do ramki w AprilTagsComponent (kolejność ma znaczenie dla pozycjonowania w resizeEvent)
-        self.april_tags.add_widget_to_frame(self.undo_button)
-        self.april_tags.add_widget_to_frame(self.redo_button)
         self.april_tags.add_widget_to_frame(self.done_button)
 
         self.setLayout(main_layout)
@@ -91,8 +76,6 @@ class DrawingPage(QWidget):
 
     def _set_buttons_enabled(self, enabled: bool):
         self.done_button.setEnabled(enabled)
-        self.undo_button.setEnabled(enabled)
-        self.redo_button.setEnabled(enabled)
 
     def export_as_image(self) -> QImage:
         """

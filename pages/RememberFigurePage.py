@@ -52,7 +52,7 @@ class RememberFigurePage(QWidget):
         self.time_bar = TimeBar(max_time=3, height=1, color="#FFFFFF")
         main_layout.addWidget(self.time_bar)
 
-        april_tags = AprilTagsComponent(num_tags=6)
+        april_tags = AprilTagsComponent(num_tags=6, show_frame=True)
         main_layout.addWidget(april_tags)
 
         self.setLayout(main_layout)
