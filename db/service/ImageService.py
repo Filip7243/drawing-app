@@ -7,6 +7,9 @@ class ImageService:
     imageRepo = ImageRepository()
     failureRepo = FailureRepository()
 
+    def get_images_by_examine_id(self, examine_id: int) -> list[Image]:
+        return self.imageRepo.get_images_by_examine_id(examine_id)
+
     def get_images_table_summary_by_examine_id(self, examine_id: int) -> list[ImageTableDataSummary]:
         images: list[Image] = self.imageRepo.get_images_by_examine_id(examine_id=examine_id)
         results: list[ImageTableDataSummary] = []

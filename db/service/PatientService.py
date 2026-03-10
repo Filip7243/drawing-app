@@ -5,6 +5,9 @@ from db.models import Patient
 class PatientService:
     patientRepo = PatientRepository()
 
+    def get_patient_by_id(self, patient_id: int):
+        return self.patientRepo.get_patient_by_id(patient_id)
+
     def createOrUpdatePatient(self, patient: Patient):
         """
         Metoda tworzy rekord pacjenta w bd jeśl ten nie istnieje,

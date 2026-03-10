@@ -1,13 +1,15 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QWidget, QTableWidget, QTableWidgetItem,
-    QVBoxLayout, QPushButton, QHeaderView, QSizePolicy
+    QVBoxLayout, QPushButton, QHeaderView, QSizePolicy, QFileDialog, QMessageBox
 )
+from pdf.PdfGenerator import PdfGenerator
 
 class LatestExaminationsTable(QWidget):
     def __init__(self, table_data: list, parent=None):
         super().__init__(parent)
         self.table_data = table_data
+        self.pdf_generator = PdfGenerator()
 
         self.table = QTableWidget()
         self.layout = QVBoxLayout(self)
@@ -21,6 +23,27 @@ class LatestExaminationsTable(QWidget):
         self._setup_ui()
         if self.table_data:
             self.set_data(self.table_data)
+
+    def _on_generate_clicked(self, row_index):
+        exam_id = self.table_data[row_index]['exam_id']
+        patient_name = f"{self.table_data[row_index]['first_name']}_{self.table_data[row_index]['last_name']}"
+        
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Zapisz raport PDF",
+            f"BVRT_Raport_{patient_name}_{exam_id}.pdf",
+            "PDF Files (*.pdf)"
+        )
+        
+        if file_path:
+            try:
+                success = self.pdf_generator.generate_report(exam_id, file_path)
+                if success:
+                    QMessageBox.information(self, "Sukces", f"Raport został wygenerowany pomyślnie:\n{file_path}")
+                else:
+                    QMessageBox.warning(self, "Błąd", "Nie udało się wygenerować raportu. Sprawdź czy dane badania istnieją.")
+            except Exception as e:
+                QMessageBox.critical(self, "Błąd krytyczny", f"Wystąpił błąd podczas generowania raportu:\n{str(e)}")
 
     def _setup_ui(self):
         table = self.table
@@ -94,7 +117,7 @@ class LatestExaminationsTable(QWidget):
             # Przycisk Generuj
             btn = QPushButton("Generuj")
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            # Na razie bez implementacji generowania raportu
+            btn.clicked.connect(lambda checked, r=i: self._on_generate_clicked(r))
             table.setCellWidget(i, 4, btn)
             
         table.resizeRowsToContents()

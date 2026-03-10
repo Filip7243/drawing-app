@@ -138,6 +138,32 @@ class PatientRepository:
             print(traceback.format_exc())
             return None
 
+    def get_patient_by_id(self, patient_id: int):
+        query = """
+                SELECT id,
+                       first_name,
+                       last_name,
+                       date_of_birth,
+                       gender,
+                       dominant_hand
+                FROM patient
+                WHERE id = %s;
+                """
+        with self.db.conn.cursor() as cur:
+            cur.execute(query, (patient_id,))
+            row = cur.fetchone()
+            if not row:
+                return None
+
+            return Patient(
+                id=row['id'],
+                first_name=row['first_name'],
+                last_name=row['last_name'],
+                date_of_birth=row['date_of_birth'],
+                gender=Gender(row['gender']),
+                dominant_hand=Hand(row['dominant_hand']),
+            )
+
     def get_latest_patients(self, limit=30):
         query = """
                 SELECT p.id,
