@@ -14,7 +14,7 @@ class LatestPatients(QWidget):
         layout.setContentsMargins(10, 10, 10, 10)
         
         self.label = QLabel("Ostatni pacjenci")
-        self.label.setStyleSheet("font-size: 12pt; font-weight: bold; color: #333;")
+        self.label.setStyleSheet("font-size: 12pt; font-weight: bold; color: black;")
         layout.addWidget(self.label)
         
         self.list_widget = QListWidget()
@@ -23,11 +23,13 @@ class LatestPatients(QWidget):
                 border: 2px solid #e0c77f;
                 border-radius: 6px;
                 background-color: white;
+                color: black;
                 font-size: 11pt;
             }
             QListWidget::item {
                 padding: 10px;
                 border-bottom: 1px solid #eee;
+                color: black;
             }
             QListWidget::item:selected {
                 background-color: #f9e8cc;
@@ -35,6 +37,7 @@ class LatestPatients(QWidget):
             }
         """)
         self.list_widget.itemClicked.connect(self.on_item_clicked)
+        self.list_widget.setCursor(Qt.CursorShape.PointingHandCursor)
         layout.addWidget(self.list_widget)
         
         self.refresh_list()

@@ -17,7 +17,7 @@ class StyledDropdown(QWidget):
 
         self.label = QLabel(label_text)
         self.label.setTextFormat(Qt.TextFormat.RichText)
-        self.label.setStyleSheet("font-size: 10pt; font-weight: bold;")
+        self.label.setStyleSheet("font-size: 10pt; font-weight: bold; color: black;")
         layout.addWidget(self.label)
 
         self.combo = QComboBox()
@@ -37,6 +37,7 @@ class StyledDropdown(QWidget):
                 border: 2px solid #e0c77f;
                 border-radius: 6px;
                 background-color: white;
+                color: black;
                 font-weight: bold;
             }
             QComboBox:hover {
@@ -44,6 +45,12 @@ class StyledDropdown(QWidget):
             }
             QComboBox:focus {
                 border: 2px solid #e0c77f;
+            }
+            QComboBox QAbstractItemView {
+                color: black;
+                background-color: white;
+                selection-background-color: #f9e8cc;
+                selection-color: black;
             }
         """)
 

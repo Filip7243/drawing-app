@@ -38,9 +38,11 @@ class StyledButton(QPushButton):
             }}
             QPushButton:hover {{
                 background-color: {hover_color};
+                color: {self.font_color};
             }}
             QPushButton:pressed {{
                 background-color: {pressed_color};
+                color: {self.font_color};
             }}
             QPushButton:disabled {{
                 background-color: #e0e0e0;  /* jaśniejszy szary */
