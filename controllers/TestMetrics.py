@@ -717,12 +717,12 @@ class TestMetrics:
             overlay_img.save(str(overlay_path), "PNG")
 
         # 2. Generowanie i zapisywanie Heatmapy
-        heatmap_img = self._generate_heatmap(image)
-        heatmap_filename = None
-        if heatmap_img:
-            heatmap_filename = f"{base_filename}_heatmap.png"
-            heatmap_path = self.session_dir / heatmap_filename
-            heatmap_img.save(str(heatmap_path), "PNG")
+        # heatmap_img = self._generate_heatmap(image)
+        heatmap_filename = ""
+        # if heatmap_img:
+        #     heatmap_filename = f"{base_filename}_heatmap.png"
+        #     heatmap_path = self.session_dir / heatmap_filename
+        #     heatmap_img.save(str(heatmap_path), "PNG")
 
         # 3. Generowanie i zapisywanie profilu prędkości (krzywa log-normalna)
         # velocity_profile_filename = None

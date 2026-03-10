@@ -349,8 +349,8 @@ class DrawingCanvas(QtWidgets.QWidget):
         direction_changes = 0
         directional_reversals = 0
         last_angle = None
-        # Próg zmiany kierunku (w stopniach) - np. 45 stopni.
-        ANGLE_THRESHOLD = 45
+        # Próg zmiany kierunku (w stopniach) - np. 50 stopni.
+        ANGLE_THRESHOLD = 50
         # Próg nawrotu (w stopniach) - np. 150 stopni (ruch niemal w przeciwnym kierunku - charakterystyczny dla szorowania)
         REVERSAL_THRESHOLD = 150
 
