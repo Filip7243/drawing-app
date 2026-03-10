@@ -49,6 +49,10 @@ class Patient:
     date_of_birth: date
     gender: Gender
     dominant_hand: Hand
+    visual_impairment: Optional[bool] = None
+    impairment_description: Optional[str] = None
+    education: Optional[School] = None
+    education_details: Optional[SchoolDetails] = None
 
 
 @dataclass
@@ -173,3 +177,7 @@ class PatientIdentity:
     date_of_birth: date
     gender: Gender
     dominant_hand: Hand
+    visual_impairment: Optional[bool] = None
+    impairment_description: Optional[str] = None
+    education: Optional[School] = None
+    education_details: Optional[SchoolDetails] = None

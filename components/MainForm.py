@@ -144,6 +144,19 @@ class MainForm(QWidget):
         self.gender_radios.set_value(gender_map.get(patient.gender))
         self.hands_radios.set_value(hand_map.get(patient.dominant_hand))
 
+        # Automatyczne wypełnianie wady wzroku i wykształcenia z najnowszego badania
+        if patient.visual_impairment is not None:
+            self.eyes_radios.set_value("Tak" if patient.visual_impairment else "Nie")
+
+        if patient.impairment_description:
+            self.eyes_description.set_value(patient.impairment_description)
+
+        if patient.education:
+            self.education_dropdown.set_value(patient.education)
+            self.handle_education_select(patient.education)
+            if patient.education_details:
+                self.details_dropdown.set_value(patient.education_details)
+
     def handle_education_select(self, selected):
         """Aktualizuje i pokazuje drugi dropdown w zależności od wyboru."""
         if selected == School.PODSTAWOWE:

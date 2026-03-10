@@ -35,3 +35,6 @@ class StyledTextArea(QWidget):
 
     def get_value(self):
         return self.textarea.toPlainText()
+
+    def set_value(self, value):
+        self.textarea.setPlainText(str(value) if value is not None else "")

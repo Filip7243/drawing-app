@@ -1,5 +1,5 @@
 from db.database_manager_singleton import get_db
-from db.models import Patient, PatientSummaryDTO, Gender, Hand
+from db.models import Patient, PatientSummaryDTO, Gender, Hand, School, SchoolDetails
 
 
 class PatientRepository:
@@ -140,9 +140,25 @@ class PatientRepository:
 
     def get_latest_patients(self, limit=30):
         query = """
-                SELECT id, first_name, last_name, date_of_birth, gender, dominant_hand
-                FROM patient
-                ORDER BY id DESC
+                SELECT p.id,
+                       p.first_name,
+                       p.last_name,
+                       p.date_of_birth,
+                       p.gender,
+                       p.dominant_hand,
+                       e.visual_impairment,
+                       e.impairment_description,
+                       e.education,
+                       e.education_details
+                FROM patient p
+                         LEFT JOIN LATERAL (
+                    SELECT *
+                    FROM examination
+                    WHERE patient_id = p.id
+                    ORDER BY date DESC
+                    LIMIT 1
+                    ) e ON TRUE
+                ORDER BY p.id DESC
                 LIMIT %s;
                 """
         patients = []
@@ -157,7 +173,11 @@ class PatientRepository:
                         last_name=row['last_name'],
                         date_of_birth=row['date_of_birth'],
                         gender=Gender(row['gender']),
-                        dominant_hand=Hand(row['dominant_hand'])
+                        dominant_hand=Hand(row['dominant_hand']),
+                        visual_impairment=row['visual_impairment'],
+                        impairment_description=row['impairment_description'],
+                        education=School(row['education']) if row['education'] else None,
+                        education_details=SchoolDetails(row['education_details']) if row['education_details'] else None
                     ))
         except Exception as e:
             print(f"Błąd przy pobieraniu ostatnich pacjentów: {e}")
