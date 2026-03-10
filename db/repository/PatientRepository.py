@@ -1,5 +1,5 @@
 from db.database_manager_singleton import get_db
-from db.models import Patient, PatientSummaryDTO
+from db.models import Patient, PatientSummaryDTO, Gender, Hand
 
 
 class PatientRepository:
@@ -124,8 +124,8 @@ class PatientRepository:
                     age_years=row['age_years'] or 0,
                     age_months=row['age_months'] or 0,
                     age_days=row['age_days'] or 0,
-                    gender=row['gender'],
-                    dominant_hand=row['dominant_hand'],
+                    gender=Gender(row['gender']),
+                    dominant_hand=Hand(row['dominant_hand']),
                     visual_impairment=row['visual_impairment'] or False,
                     impairment_description=row['impairment_description'],
                     comment=row['comments'],
@@ -137,3 +137,28 @@ class PatientRepository:
             print("Treść błędu:", e)
             print(traceback.format_exc())
             return None
+
+    def get_latest_patients(self, limit=30):
+        query = """
+                SELECT id, first_name, last_name, date_of_birth, gender, dominant_hand
+                FROM patient
+                ORDER BY id DESC
+                LIMIT %s;
+                """
+        patients = []
+        try:
+            with self.db.conn.cursor() as cur:
+                cur.execute(query, (limit,))
+                rows = cur.fetchall()
+                for row in rows:
+                    patients.append(Patient(
+                        id=row['id'],
+                        first_name=row['first_name'],
+                        last_name=row['last_name'],
+                        date_of_birth=row['date_of_birth'],
+                        gender=Gender(row['gender']),
+                        dominant_hand=Hand(row['dominant_hand'])
+                    ))
+        except Exception as e:
+            print(f"Błąd przy pobieraniu ostatnich pacjentów: {e}")
+        return patients

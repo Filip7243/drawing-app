@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QStackedLayout, Q
 
 from components.MainForm import MainForm
 from components.StyledHeader import StyledHeader
+from components.LatestPatients import LatestPatients
 from db.models import PatientIdentity, Gender, Hand
 from db.repository.PatientRepository import PatientRepository
 from pages.EarlierExaminesPage import EarlierExaminesPage
@@ -40,6 +41,12 @@ class MainFormPage(QWidget):
         self.main_form.startRequested.connect(self.startRequested.emit)
 
         form_container.addWidget(self.main_form, alignment=Qt.AlignmentFlag.AlignCenter)
+        
+        self.latest_patients = LatestPatients(parent=self)
+        self.latest_patients.setFixedWidth(300)
+        self.latest_patients.patientSelected.connect(self.main_form.fill_patient_data)
+        form_container.addWidget(self.latest_patients)
+
         form_container.addStretch(1)
         main_layout.addLayout(form_container)
 

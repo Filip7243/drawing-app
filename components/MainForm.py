@@ -132,6 +132,18 @@ class MainForm(QWidget):
     def get_test_metadata(self) -> TestMetaData | None:
         return self.test_meta_data
 
+    def fill_patient_data(self, patient: Patient):
+        self.first_name.set_value(patient.first_name)
+        self.last_name.set_value(patient.last_name)
+        self.date_of_birth.set_value(patient.date_of_birth)
+
+        # Mapowanie Enumów na polskie teksty w formularzu
+        gender_map = {Gender.MEZCZYZNA: "Mężczyzna", Gender.KOBIETA: "Kobieta"}
+        hand_map = {Hand.PRAWA: "Prawa", Hand.LEWA: "Lewa"}
+
+        self.gender_radios.set_value(gender_map.get(patient.gender))
+        self.hands_radios.set_value(hand_map.get(patient.dominant_hand))
+
     def handle_education_select(self, selected):
         """Aktualizuje i pokazuje drugi dropdown w zależności od wyboru."""
         if selected == School.PODSTAWOWE:
