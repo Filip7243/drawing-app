@@ -8,6 +8,7 @@ from components.LatestPatients import LatestPatients
 from db.models import PatientIdentity, Gender, Hand
 from db.repository.PatientRepository import PatientRepository
 from pages.EarlierExaminesPage import EarlierExaminesPage
+from pages.LatestExaminationsPage import LatestExaminationsPage
 
 CONTENT_MARGINS = 100
 SPACING = 100
@@ -55,9 +56,15 @@ class MainFormPage(QWidget):
         self.main_form.showEarlierRequested.connect(self.show_earlier_page)
         self.earlier_page.backRequested.connect(self.show_main_form)
 
-        # Dodajemy oba widgety do stacked layout
+        # Widget 3: LatestExaminationsPage
+        self.latest_exams_page = LatestExaminationsPage(parent=self)
+        self.main_form.showLatestExamsRequested.connect(self.show_latest_exams_page)
+        self.latest_exams_page.backRequested.connect(self.show_main_form)
+
+        # Dodajemy widgety do stacked layout
         self.stacked_layout.addWidget(self.main_widget)
         self.stacked_layout.addWidget(self.earlier_page)
+        self.stacked_layout.addWidget(self.latest_exams_page)
 
         self.stacked_layout.setCurrentWidget(self.main_widget)
 
@@ -110,6 +117,10 @@ class MainFormPage(QWidget):
 
     def show_main_form(self):
         self.stacked_layout.setCurrentWidget(self.main_widget)
+
+    def show_latest_exams_page(self):
+        self.latest_exams_page.load_data()
+        self.stacked_layout.setCurrentWidget(self.latest_exams_page)
 
     def resizeEvent(self, event):
         if not self.background.isNull():

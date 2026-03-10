@@ -224,3 +224,20 @@ class ExaminationRepository:
             updated = cur.fetchone()
             self.db.conn.commit()
             return updated['id'] if updated else None
+
+    def get_latest_examinations(self, limit=30):
+        query = """
+                SELECT e.id          as exam_id,
+                       e.patient_id  as patient_id,
+                       p.first_name,
+                       p.last_name,
+                       e.date        as exam_date
+                FROM examination e
+                         JOIN patient p ON p.id = e.patient_id
+                ORDER BY e.date DESC, e.id DESC
+                LIMIT %s;
+                """
+        with self.db.conn.cursor() as cur:
+            cur.execute(query, (limit,))
+            rows = cur.fetchall()
+            return rows

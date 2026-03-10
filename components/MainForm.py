@@ -38,6 +38,7 @@ def calculate_age(birth_date: date):
 class MainForm(QWidget):
     startRequested = pyqtSignal()
     showEarlierRequested = pyqtSignal()
+    showLatestExamsRequested = pyqtSignal()
 
     patientService = PatientService()
     examinationRepository = ExaminationRepository()
@@ -120,7 +121,11 @@ class MainForm(QWidget):
         start_btn.clicked.connect(self.on_start_btn_click)
         self.latest_examine_btn = StyledButton("Poprzednie badania", color="#EEB14C")
         self.latest_examine_btn.clicked.connect(self.showEarlierRequested.emit)
+        
+        self.all_exams_btn = StyledButton("Wszystkie badania", color="#0078D7")
+        self.all_exams_btn.clicked.connect(self.showLatestExamsRequested.emit)
 
+        button_layout.addWidget(self.all_exams_btn)
         button_layout.addWidget(self.latest_examine_btn)
         button_layout.addWidget(start_btn)
         button_layout.setSpacing(15)
