@@ -172,18 +172,34 @@ class PatientRepository:
                        p.date_of_birth,
                        p.gender,
                        p.dominant_hand,
-                       e.visual_impairment,
-                       e.impairment_description,
-                       e.education,
-                       e.education_details
+                       COALESCE(e.visual_impairment, re.visual_impairment)           AS visual_impairment,
+                       COALESCE(e.impairment_description, re.impairment_description) AS impairment_description,
+                       COALESCE(e.education, re.education)                           AS education,
+                       COALESCE(e.education_details, re.education_details)           AS education_details
                 FROM patient p
+
                          LEFT JOIN LATERAL (
-                    SELECT *
+                    SELECT visual_impairment,
+                           impairment_description,
+                           education,
+                           education_details
                     FROM examination
                     WHERE patient_id = p.id
                     ORDER BY date DESC
                     LIMIT 1
                     ) e ON TRUE
+
+                         LEFT JOIN LATERAL (
+                    SELECT visual_impairment,
+                           impairment_description,
+                           education,
+                           education_details
+                    FROM raven_examination
+                    WHERE patient_id = p.id
+                    ORDER BY date DESC
+                    LIMIT 1
+                    ) re ON e IS NULL
+
                 ORDER BY p.id DESC
                 LIMIT %s;
                 """
