@@ -155,11 +155,11 @@ class PdfGenerator:
         elements.append(Spacer(1, 24))
 
         # --- Tabela 3: Dane o rysunkach ---
-        elements.append(Paragraph("Szczegóły rysunków (1-10)", heading_style))
+        elements.append(Paragraph("Wyniki testu rysunków (1-10)", heading_style))
 
         drawings_header = [
-            "Nr", "Czas\nogólny", "Czas\nrys.", "Przerwy", "Śr. czas\nprzerw",
-            "Powroty", "Szoro-\nwanie", "Zmiana\n150°", "Zmiana\n45°"
+            "Zadanie", "Czas\nogólny", "Czas\nrys.", "Przerwy", "Śr. czas\nprzerw",
+            "Powroty", "Szoro-\nwanie", "Zmiana\n150°", "Zmiana\n45°", "Błędne", "Poprawne"
         ]
         drawings_data = [drawings_header]
 
@@ -175,8 +175,13 @@ class PdfGenerator:
                 str(img.revisit_count),
                 "TAK" if img.shading_detected else "NIE",
                 str(img.direction_reversal_count),  # >150 stopni
-                str(img.direction_changes_count)  # 45 stopni
+                str(img.direction_changes_count),  # 45 stopni
+                "", ""
             ])
+
+        # Dodanie wiersza z sumami na końcu (puste, do wypełnienia przez lekarza)
+        summary_row = ["", "", "", "", "", "", "", "", "Suma:", "", ""]
+        drawings_data.append(summary_row)
 
         drawings_table = Table(drawings_data, repeatRows=1)
         drawings_table.setStyle(TableStyle([
@@ -187,6 +192,7 @@ class PdfGenerator:
             ('FONTSIZE', (0, 0), (-1, -1), 8),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, -1), 'DejaVuSans'),
+            ('ALIGN', (-3, -1), (-3, -1), 'RIGHT'),  # "Suma:" wyrównana do prawej
         ]))
         elements.append(drawings_table)
 
@@ -202,8 +208,12 @@ class PdfGenerator:
             elements.append(Paragraph(f"Rysunek nr {idx}", heading_style))
 
             # Tabela z danymi rysunku (jeden wiersz + nagłówek)
+            single_drawing_header = [
+                "Zadanie", "Czas\nog.", "Czas\nrys.", "Przerwy", "Śr. cz.\nprzerw",
+                "Powroty", "Szoro-\nwanie", "Zmiana\n150°", "Zmiana\n45°", "Błędne", "Poprawne"
+            ]
             single_drawing_data = [
-                drawings_header,
+                single_drawing_header,
                 [
                     str(idx),
                     f"{img.duration_s:.2f}s",
@@ -213,11 +223,12 @@ class PdfGenerator:
                     str(img.revisit_count),
                     "TAK" if img.shading_detected else "NIE",
                     str(img.direction_reversal_count),
-                    str(img.direction_changes_count)
+                    str(img.direction_changes_count),
+                    "", ""
                 ]
             ]
 
-            single_drawing_table = Table(single_drawing_data, colWidths=[30, 60, 60, 50, 60, 60, 60, 60, 60])
+            single_drawing_table = Table(single_drawing_data, colWidths=[30, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45])
             single_drawing_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -228,6 +239,25 @@ class PdfGenerator:
                 ('FONTNAME', (0, 0), (-1, -1), 'DejaVuSans'),
             ]))
             elements.append(single_drawing_table)
+            elements.append(Spacer(1, 12))
+
+            # Tabela diagnostyczna per rysunek
+            diag_header = [
+                "Pominięcia", "Zniekształcenia", "Perseweracje", "Rotacje", "Przemieszczenia",
+                Paragraph("Błędy względnej wielkości", ParagraphStyle('DiagHeader', parent=normal_style, fontSize=8, alignment=1)),
+                Paragraph("Ogólna ilość błędów", ParagraphStyle('DiagHeader', parent=normal_style, fontSize=8, alignment=1))
+            ]
+            diag_data = [diag_header, ["", "", "", "", "", "", ""]]
+            diag_table = Table(diag_data, colWidths=[65, 75, 70, 50, 75, 75, 70])
+            diag_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('FONTNAME', (0, 0), (-1, -1), 'DejaVuSans'),
+            ]))
+            elements.append(diag_table)
             elements.append(Spacer(1, 12))
 
             if session_dir:
@@ -285,6 +315,18 @@ class PdfGenerator:
                         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
                     ]))
                     elements.append(overlay_table)
+
+        # --- Ostatnia strona: Opis wyników i rekomendacje ---
+        elements.append(PageBreak())
+        elements.append(Paragraph("Opis wyników i rekomendacje:", normal_style))
+        # Puste miejsce w ramce na opis
+        desc_table = Table([["\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"]], colWidths=[450])
+        desc_table.setStyle(TableStyle([
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('FONTNAME', (0, 0), (-1, -1), 'DejaVuSans'),
+        ]))
+        elements.append(desc_table)
 
         doc.build(elements)
         return True

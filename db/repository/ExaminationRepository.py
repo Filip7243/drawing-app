@@ -225,6 +225,58 @@ class ExaminationRepository:
             self.db.conn.commit()
             return updated['id'] if updated else None
 
+    def get_all_examinations(self):
+        query = """
+                SELECT id,
+                       patient_id,
+                       date,
+                       whole_time,
+                       avg_time,
+                       age_years,
+                       age_months,
+                       age_days,
+                       visual_impairment,
+                       impairment_description,
+                       education,
+                       education_details,
+                       comments,
+                       examination_reason,
+                       total_duration_s,
+                       test_start_ts,
+                       test_end_ts
+                FROM examination
+                ORDER BY date DESC, id DESC;
+                """
+        with self.db.conn.cursor() as cur:
+            cur.execute(query)
+            rows = cur.fetchall()
+            if not rows:
+                return []
+
+            from db.models import School, SchoolDetails
+            examinations = []
+            for row in rows:
+                examinations.append(Examination(
+                    id=row['id'],
+                    patient_id=row['patient_id'],
+                    date=row['date'],
+                    whole_time=row['whole_time'],
+                    avg_time=row['avg_time'],
+                    age_years=row['age_years'],
+                    age_months=row['age_months'],
+                    age_days=row['age_days'],
+                    visual_impairment=row['visual_impairment'],
+                    impairment_description=row['impairment_description'],
+                    education=School(row['education']) if row['education'] else None,
+                    education_details=SchoolDetails(row['education_details']) if row['education_details'] else None,
+                    comments=row['comments'],
+                    examination_reason=row['examination_reason'],
+                    total_duration_s=float(row['total_duration_s']) if row['total_duration_s'] is not None else 0.0,
+                    test_start_ts=float(row['test_start_ts']) if row['test_start_ts'] is not None else 0.0,
+                    test_end_ts=row['test_end_ts'],
+                ))
+            return examinations
+
     def get_latest_examinations(self, limit=30):
         query = """
                 SELECT e.id          as exam_id,

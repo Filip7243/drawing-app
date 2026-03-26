@@ -12,6 +12,9 @@ class ExaminationService:
     def get_examination_by_id(self, exam_id: int):
         return self.examinationRepo.get_examination_by_id(exam_id)
 
+    def get_all_examinations(self):
+        return self.examinationRepo.get_all_examinations()
+
     def get_patient_previous_examinations(self, patientIdentity: PatientIdentity) -> list[PreviousExaminationsDTO]:
         found_patient = self.patientRepo.get_patient_by_identity(patientIdentity.first_name,
                                                                  patientIdentity.last_name,
